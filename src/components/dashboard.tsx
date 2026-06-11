@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronRight, Briefcase, Users, LogOut } from 'lucide-react'
-import type { Proposition } from '@/lib/mock-data'
+import type { Proposition } from '@/lib/dashboard-data'
 
 const STYLES = {
   '01': {

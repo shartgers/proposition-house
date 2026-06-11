@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Proposition House
 
-## Getting Started
+Internal dashboard for Xomnia's service portfolio. Organises the five propositions, their offerings, and the 99 client cases that evidence them.
 
-First, run the development server:
+## What it does
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Shows all five propositions (Clear Direction, Agentic Solutions, Intelligent Workflows, Data Foundation, Trusted AI) with their offerings and case counts
+- Requires Google SSO login — only Xomnia Google Workspace accounts are accepted
+- Backed by Supabase (Postgres + auth)
+
+## Stack
+
+- **Next.js 16** (App Router) + **React 19**
+- **Supabase** — Postgres database + Google OAuth via Supabase Auth
+- **Tailwind CSS v4** + **shadcn/ui** components
+- **Vitest** for tests
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 20+
+- A Supabase project with Google OAuth configured (see `docs/adr/0001-google-sso.md`)
+
+### Environment variables
+
+Create a `.env.local` file:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-anon-key>
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Run locally
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000). You'll be redirected to login on first visit.
 
-## Learn More
+## Database
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run db:push          # apply schema migrations via Supabase CLI
+npm run db:seed          # seed base data (propositions, practices)
+npm run db:seed-offerings  # seed offerings
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run dev          # dev server
+npm run build        # production build
+npm run test         # run tests once
+npm run test:watch   # run tests in watch mode
+npm run lint         # ESLint
+npm run format       # Prettier (write)
+npm run format:check # Prettier (check only)
+```
 
-## Deploy on Vercel
+## Project layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+  app/            # Next.js App Router pages and API routes
+  components/     # React components (dashboard, UI primitives)
+  lib/
+    db/           # Supabase query helpers and TypeScript types
+    supabase/     # Supabase client factories (browser + server)
+    mock-data.ts  # Temporary mock data (will be replaced by DB queries)
+  tests/          # Vitest tests
+input/
+  xomnia_use_cases.md   # Source of truth: 99 client cases
+docs/
+  adr/            # Architecture decisions
+  agents/         # Agent and issue-tracker conventions
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Domain
+
+See `CLAUDE.md` for the full domain model: proposition definitions, proof levels, sector list, and recurring clients.

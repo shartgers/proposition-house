@@ -1,0 +1,50 @@
+import { SupabaseClient } from '@supabase/supabase-js'
+
+export type Offering = {
+  id: string
+  name: string
+  practice: string
+  practiceOwner: string
+  caseCount: number
+}
+
+export type Proposition = {
+  id: string
+  number: string
+  name: string
+  offerings: Offering[]
+}
+
+export async function fetchDashboardData(supabase: SupabaseClient): Promise<Proposition[]> {
+  const { data, error } = await supabase
+    .from('propositions')
+    .select(`
+      id,
+      number,
+      name,
+      offerings (
+        id,
+        name,
+        sort_order,
+        practices ( name, practice_owner ),
+        cases ( count )
+      )
+    `)
+    .order('number')
+    .order('sort_order', { referencedTable: 'offerings' })
+
+  if (error) throw error
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    number: row.number,
+    name: row.name,
+    offerings: (row.offerings ?? []).map((o: any) => ({
+      id: o.id,
+      name: o.name,
+      practice: o.practices?.name ?? '',
+      practiceOwner: o.practices?.practice_owner ?? '',
+      caseCount: (o.cases as { count: number }[])?.[0]?.count ?? 0,
+    })),
+  }))
+}

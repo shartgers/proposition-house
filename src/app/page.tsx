@@ -2,7 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { Dashboard } from '@/components/dashboard'
-import { PROPOSITIONS } from '@/lib/mock-data'
+import { fetchDashboardData } from '@/lib/dashboard-data'
 
 export default async function Home() {
   const cookieStore = await cookies()
@@ -28,9 +28,11 @@ export default async function Home() {
 
   if (!user) redirect('/login')
 
+  const propositions = await fetchDashboardData(supabase)
+
   const initials = user.email
     ? user.email.slice(0, 2).toUpperCase()
     : '?'
 
-  return <Dashboard propositions={PROPOSITIONS} userEmail={user.email ?? ''} userInitials={initials} />
+  return <Dashboard propositions={propositions} userEmail={user.email ?? ''} userInitials={initials} />
 }
