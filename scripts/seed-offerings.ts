@@ -16,54 +16,56 @@ try {
     })
 } catch {}
 
+// Practices source: input/practices.md (units: Strategy & Delivery, AI Solutions,
+// Analytics & Data Engineering [no practices yet], Data Platforms, Trusted AI)
 const SEED = [
   {
     proposition: '01',
     offerings: [
-      { name: 'AI Board Brief', practice: 'AI Strategy', owner: 'Arnoud van Wijk', sort: 1 },
-      { name: 'Agentic Maturity Scan', practice: 'AI Strategy', owner: 'Arnoud van Wijk', sort: 2 },
-      { name: 'Phase Zero', practice: 'AI Strategy', owner: 'Arnoud van Wijk', sort: 3 },
-      { name: 'Fractional AI Leadership', practice: 'AI Strategy', owner: 'Arnoud van Wijk', sort: 4 },
+      { name: 'AI Board Brief', practice: 'Data & AI strategy', owner: 'TBD', sort: 1 },
+      { name: 'Agentic Maturity Scan', practice: 'Data & AI strategy', owner: 'TBD', sort: 2 },
+      { name: 'Phase Zero', practice: 'Data & AI strategy', owner: 'TBD', sort: 3 },
+      { name: 'Fractional AI Leadership', practice: 'Data & AI strategy', owner: 'TBD', sort: 4 },
     ],
   },
   {
     proposition: '02',
     offerings: [
-      { name: 'MLOps maturity scan', practice: 'ML Engineering', owner: 'Bart de Vries', sort: 1 },
-      { name: 'AI assistants & chatbots', practice: 'ML Engineering', owner: 'Bart de Vries', sort: 2 },
-      { name: 'Agents for business automation', practice: 'ML Engineering', owner: 'Bart de Vries', sort: 3 },
-      { name: 'AI platform + cloud engineering', practice: 'Cloud & Platform', owner: 'Chris Janssen', sort: 4 },
-      { name: 'Custom model development', practice: 'ML Engineering', owner: 'Bart de Vries', sort: 5 },
-      { name: 'Fine-tuning', practice: 'ML Engineering', owner: 'Bart de Vries', sort: 6 },
+      { name: 'MLOps maturity scan', practice: 'GenAI & Agentic', owner: 'TBD', sort: 1 },
+      { name: 'AI assistants & chatbots', practice: 'GenAI & Agentic', owner: 'TBD', sort: 2 },
+      { name: 'Agents for business automation', practice: 'GenAI & Agentic', owner: 'TBD', sort: 3 },
+      { name: 'AI platform + cloud engineering', practice: 'Custom platforms', owner: 'TBD', sort: 4 },
+      { name: 'Custom model development', practice: 'GenAI & Agentic', owner: 'TBD', sort: 5 },
+      { name: 'Fine-tuning', practice: 'GenAI & Agentic', owner: 'TBD', sort: 6 },
     ],
   },
   {
     proposition: '03',
     offerings: [
-      { name: 'Automation opportunity scan', practice: 'Process Intelligence', owner: 'Diana Smit', sort: 1 },
-      { name: 'Intelligent workflow design', practice: 'Process Intelligence', owner: 'Diana Smit', sort: 2 },
-      { name: 'Agent-enabled customer service', practice: 'Process Intelligence', owner: 'Diana Smit', sort: 3 },
-      { name: 'Intelligent document build', practice: 'Process Intelligence', owner: 'Diana Smit', sort: 4 },
+      { name: 'Automation opportunity scan', practice: 'Agentic delivery', owner: 'TBD', sort: 1 },
+      { name: 'Intelligent workflow design', practice: 'Agentic delivery', owner: 'TBD', sort: 2 },
+      { name: 'Agent-enabled customer service', practice: 'Agentic delivery', owner: 'TBD', sort: 3 },
+      { name: 'Intelligent document build', practice: 'Agentic delivery', owner: 'TBD', sort: 4 },
     ],
   },
   {
     proposition: '04',
     offerings: [
-      { name: 'Data readiness assessment', practice: 'Data Engineering', owner: 'Erik Bakker', sort: 1 },
-      { name: 'Data platform build', practice: 'Data Engineering', owner: 'Erik Bakker', sort: 2 },
-      { name: 'Modern Data Stack tools', practice: 'Data Engineering', owner: 'Erik Bakker', sort: 3 },
-      { name: 'AI-ready data platform', practice: 'Data Engineering', owner: 'Erik Bakker', sort: 4 },
-      { name: 'Legacy modernisation', practice: 'Data Engineering', owner: 'Erik Bakker', sort: 5 },
+      { name: 'Data readiness assessment', practice: 'Custom platforms', owner: 'TBD', sort: 1 },
+      { name: 'Data platform build', practice: 'Databricks', owner: 'TBD', sort: 2 },
+      { name: 'Modern Data Stack tools', practice: 'Fabric', owner: 'TBD', sort: 3 },
+      { name: 'AI-ready data platform', practice: 'Databricks', owner: 'TBD', sort: 4 },
+      { name: 'Legacy modernisation', practice: 'IT Ops', owner: 'TBD', sort: 5 },
     ],
   },
   {
     proposition: '05',
     offerings: [
-      { name: 'EU AI Act audit', practice: 'Responsible AI', owner: 'Femke de Jong', sort: 1 },
-      { name: 'Risk & controls audit', practice: 'Responsible AI', owner: 'Femke de Jong', sort: 2 },
-      { name: 'Responsible AI framework', practice: 'Responsible AI', owner: 'Femke de Jong', sort: 3 },
-      { name: 'Open source & EU Alt models', practice: 'Responsible AI', owner: 'Femke de Jong', sort: 4 },
-      { name: 'AI risk & compliance audit', practice: 'Responsible AI', owner: 'Femke de Jong', sort: 5 },
+      { name: 'EU AI Act audit', practice: 'AI governance', owner: 'TBD', sort: 1 },
+      { name: 'Risk & controls audit', practice: 'AI governance', owner: 'TBD', sort: 2 },
+      { name: 'Responsible AI framework', practice: 'AI governance', owner: 'TBD', sort: 3 },
+      { name: 'Open source & EU Alt models', practice: 'Sovereign AI', owner: 'TBD', sort: 4 },
+      { name: 'AI risk & compliance audit', practice: 'AI governance', owner: 'TBD', sort: 5 },
     ],
   },
 ]

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronRight, Briefcase, Users } from 'lucide-react'
+import { ChevronRight, Briefcase, Users, LogOut } from 'lucide-react'
 import type { Proposition } from '@/lib/mock-data'
 
 const STYLES = {
@@ -42,7 +42,15 @@ const STYLES = {
   },
 }
 
-export function Dashboard({ propositions }: { propositions: Proposition[] }) {
+export function Dashboard({
+  propositions,
+  userEmail,
+  userInitials,
+}: {
+  propositions: Proposition[]
+  userEmail: string
+  userInitials: string
+}) {
   const [selectedId, setSelectedId] = useState(propositions[0].id)
   const selected = propositions.find((p) => p.id === selectedId)!
   const s = STYLES[selected.id as keyof typeof STYLES]
@@ -60,8 +68,20 @@ export function Dashboard({ propositions }: { propositions: Proposition[] }) {
             Proposition House
           </h1>
         </div>
-        <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold">
-          SH
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground hidden sm:block">{userEmail}</span>
+          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold flex-shrink-0">
+            {userInitials}
+          </div>
+          <form action="/auth/signout" method="POST">
+            <button
+              type="submit"
+              title="Sign out"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </form>
         </div>
       </header>
 

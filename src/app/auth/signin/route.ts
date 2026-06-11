@@ -1,10 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { Dashboard } from '@/components/dashboard'
-import { PROPOSITIONS } from '@/lib/mock-data'
 
-export default async function Home() {
+export async function POST() {
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -22,15 +20,14 @@ export default async function Home() {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/callback`,
+    },
+  })
 
-  if (!user) redirect('/login')
+  if (error || !data.url) redirect('/login')
 
-  const initials = user.email
-    ? user.email.slice(0, 2).toUpperCase()
-    : '?'
-
-  return <Dashboard propositions={PROPOSITIONS} userEmail={user.email ?? ''} userInitials={initials} />
+  redirect(data.url)
 }

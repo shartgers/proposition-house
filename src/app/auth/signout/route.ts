@@ -1,10 +1,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { Dashboard } from '@/components/dashboard'
-import { PROPOSITIONS } from '@/lib/mock-data'
+import { NextResponse } from 'next/server'
 
-export default async function Home() {
+export async function POST() {
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
@@ -22,15 +20,7 @@ export default async function Home() {
     }
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  await supabase.auth.signOut()
 
-  if (!user) redirect('/login')
-
-  const initials = user.email
-    ? user.email.slice(0, 2).toUpperCase()
-    : '?'
-
-  return <Dashboard propositions={PROPOSITIONS} userEmail={user.email ?? ''} userInitials={initials} />
+  return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'))
 }
