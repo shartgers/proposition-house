@@ -32,7 +32,12 @@ export default async function Home({
 
   if (!user) redirect('/login')
 
-  const propositions = await fetchDashboardData(supabase)
+  const [propositions, { data: practicesData }] = await Promise.all([
+    fetchDashboardData(supabase),
+    supabase.from('practices').select('id, name').order('name'),
+  ])
+  const practices = (practicesData ?? []) as { id: string; name: string }[]
+
   const { p } = await searchParams
   const initialPropositionNumber = p ?? propositions[0]?.number
 
@@ -43,6 +48,7 @@ export default async function Home({
   return (
     <Dashboard
       propositions={propositions}
+      practices={practices}
       initialPropositionNumber={initialPropositionNumber}
       userEmail={user.email ?? ''}
       userInitials={initials}
