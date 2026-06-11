@@ -57,7 +57,7 @@ export function Dashboard({
   const initial = propositions.find((p) => p.number === initialPropositionNumber) ?? propositions[0]
   const [selectedId, setSelectedId] = useState(initial.id)
   const selected = propositions.find((p) => p.id === selectedId)!
-  const s = STYLES[selected.id as keyof typeof STYLES]
+  const s = STYLES[selected.number as keyof typeof STYLES]
   const totalCases = selected.offerings.reduce((n, o) => n + o.caseCount, 0)
 
   return (
@@ -96,7 +96,7 @@ export function Dashboard({
             Propositions
           </p>
           {propositions.map((prop) => {
-            const ps = STYLES[prop.id as keyof typeof STYLES]
+            const ps = STYLES[prop.number as keyof typeof STYLES]
             const isActive = prop.id === selectedId
             const cases = prop.offerings.reduce((n, o) => n + o.caseCount, 0)
             return (
