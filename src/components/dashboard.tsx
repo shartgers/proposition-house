@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
-import Link from 'next/link'
+import { useState, useEffect } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
 import { ChevronRight, Briefcase, Users, LogOut } from 'lucide-react'
 import type { Proposition } from '@/lib/dashboard-data'
+import type { OfferingDetail } from '@/lib/offering-data'
+import { fetchOfferingDetail } from '@/lib/offering-data'
+import { OfferingPanel } from '@/components/offering-panel'
 
 const STYLES = {
   '01': {
@@ -12,6 +15,7 @@ const STYLES = {
     num: 'text-blue-700',
     badge: 'bg-blue-100 text-blue-700',
     cardAccent: 'hover:border-blue-200',
+    cardActive: 'border-blue-300 bg-blue-50/50',
   },
   '02': {
     dot: 'bg-violet-500',
@@ -19,6 +23,7 @@ const STYLES = {
     num: 'text-violet-700',
     badge: 'bg-violet-100 text-violet-700',
     cardAccent: 'hover:border-violet-200',
+    cardActive: 'border-violet-300 bg-violet-50/50',
   },
   '03': {
     dot: 'bg-emerald-500',
@@ -26,6 +31,7 @@ const STYLES = {
     num: 'text-emerald-700',
     badge: 'bg-emerald-100 text-emerald-700',
     cardAccent: 'hover:border-emerald-200',
+    cardActive: 'border-emerald-300 bg-emerald-50/50',
   },
   '04': {
     dot: 'bg-amber-500',
@@ -33,6 +39,7 @@ const STYLES = {
     num: 'text-amber-700',
     badge: 'bg-amber-100 text-amber-700',
     cardAccent: 'hover:border-amber-200',
+    cardActive: 'border-amber-300 bg-amber-50/50',
   },
   '05': {
     dot: 'bg-rose-500',
@@ -40,6 +47,7 @@ const STYLES = {
     num: 'text-rose-700',
     badge: 'bg-rose-100 text-rose-700',
     cardAccent: 'hover:border-rose-200',
+    cardActive: 'border-rose-300 bg-rose-50/50',
   },
 }
 
@@ -59,6 +67,37 @@ export function Dashboard({
   const selected = propositions.find((p) => p.id === selectedId)!
   const s = STYLES[selected.number as keyof typeof STYLES]
   const totalCases = selected.offerings.reduce((n, o) => n + o.caseCount, 0)
+
+  const [activeOfferingId, setActiveOfferingId] = useState<string | null>(null)
+  const [offeringDetail, setOfferingDetail] = useState<OfferingDetail | null>(null)
+  const [loadingOffering, setLoadingOffering] = useState(false)
+  const panelOpen = activeOfferingId !== null
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  useEffect(() => {
+    if (!activeOfferingId) return
+    setLoadingOffering(true)
+    fetchOfferingDetail(supabase, activeOfferingId).then((detail) => {
+      setOfferingDetail(detail)
+      setLoadingOffering(false)
+    })
+  }, [activeOfferingId])
+
+  function openOffering(id: string) {
+    if (activeOfferingId === id) {
+      setActiveOfferingId(null)
+    } else {
+      setActiveOfferingId(id)
+    }
+  }
+
+  function closePanel() {
+    setActiveOfferingId(null)
+  }
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -102,7 +141,7 @@ export function Dashboard({
             return (
               <button
                 key={prop.id}
-                onClick={() => setSelectedId(prop.id)}
+                onClick={() => { setSelectedId(prop.id); setActiveOfferingId(null) }}
                 className={`w-full text-left px-4 py-3 border-l-2 transition-all ${
                   isActive
                     ? `${ps.activeBar} bg-background shadow-soft`
@@ -112,9 +151,7 @@ export function Dashboard({
                 <div className="flex items-center gap-2.5">
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${ps.dot}`} />
                   <div className="flex-1 min-w-0">
-                    <p
-                      className={`text-xs font-semibold ${isActive ? ps.num : 'text-muted-foreground'}`}
-                    >
+                    <p className={`text-xs font-semibold ${isActive ? ps.num : 'text-muted-foreground'}`}>
                       {prop.number}
                     </p>
                     <p className="text-sm font-medium leading-snug truncate">{prop.name}</p>
@@ -132,7 +169,7 @@ export function Dashboard({
         </nav>
 
         {/* Content panel */}
-        <main className="flex-1 overflow-y-auto p-8 bg-background">
+        <main className="flex-1 overflow-y-auto p-8 bg-background min-w-0">
           <div className="max-w-3xl">
             <div className="mb-7">
               <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${s.num}`}>
@@ -145,37 +182,55 @@ export function Dashboard({
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              {selected.offerings.map((offering) => (
-                <Link
-                  key={offering.id}
-                  href={`/offerings/${offering.id}?back=${selected.number}`}
-                  className={`text-left p-5 rounded-xl border border-border bg-card shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-soft-lg ${s.cardAccent}`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-4">
-                    <p className="font-heading text-sm font-semibold leading-snug">
-                      {offering.name}
-                    </p>
-                    <span
-                      className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${s.badge}`}
-                    >
-                      {offering.caseCount}
-                    </span>
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Briefcase className="w-3 h-3 flex-shrink-0" />
-                      <span>{offering.practice}</span>
+              {selected.offerings.map((offering) => {
+                const isOfferingActive = activeOfferingId === offering.id
+                return (
+                  <button
+                    key={offering.id}
+                    onClick={() => openOffering(offering.id)}
+                    className={`text-left p-5 rounded-xl border bg-card shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-soft-lg ${
+                      isOfferingActive ? s.cardActive : `border-border ${s.cardAccent}`
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-4">
+                      <p className="font-heading text-sm font-semibold leading-snug">
+                        {offering.name}
+                      </p>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${s.badge}`}>
+                        {offering.caseCount}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <Users className="w-3 h-3 flex-shrink-0" />
-                      <span>{offering.practiceOwner}</span>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Briefcase className="w-3 h-3 flex-shrink-0" />
+                        <span>{offering.practice}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Users className="w-3 h-3 flex-shrink-0" />
+                        <span>{offering.practiceOwner}</span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </main>
+
+        {/* Offering detail panel — slides in from the right */}
+        <div
+          className={`flex-shrink-0 border-l border-border bg-card overflow-hidden transition-[width] duration-300 ease-in-out ${
+            panelOpen ? 'w-[420px]' : 'w-0'
+          }`}
+        >
+          <div className="w-[420px] h-full">
+            <OfferingPanel
+              offering={offeringDetail}
+              loading={loadingOffering}
+              onClose={closePanel}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )
