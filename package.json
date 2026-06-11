@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:push": "supabase db push",
-    "db:seed": "npx tsx scripts/seed.ts"
+    "db:seed": "npx tsx scripts/seed.ts",
+    "db:seed-offerings": "npx tsx scripts/seed-offerings.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
