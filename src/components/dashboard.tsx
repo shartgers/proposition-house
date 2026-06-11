@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { ChevronRight, Briefcase, Users, LogOut } from 'lucide-react'
 import type { Proposition } from '@/lib/dashboard-data'
 
@@ -44,14 +45,17 @@ const STYLES = {
 
 export function Dashboard({
   propositions,
+  initialPropositionNumber,
   userEmail,
   userInitials,
 }: {
   propositions: Proposition[]
+  initialPropositionNumber: string
   userEmail: string
   userInitials: string
 }) {
-  const [selectedId, setSelectedId] = useState(propositions[0].id)
+  const initial = propositions.find((p) => p.number === initialPropositionNumber) ?? propositions[0]
+  const [selectedId, setSelectedId] = useState(initial.id)
   const selected = propositions.find((p) => p.id === selectedId)!
   const s = STYLES[selected.id as keyof typeof STYLES]
   const totalCases = selected.offerings.reduce((n, o) => n + o.caseCount, 0)
@@ -142,8 +146,9 @@ export function Dashboard({
 
             <div className="grid grid-cols-2 gap-4">
               {selected.offerings.map((offering) => (
-                <button
+                <Link
                   key={offering.id}
+                  href={`/offerings/${offering.id}?back=${selected.number}`}
                   className={`text-left p-5 rounded-xl border border-border bg-card shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-soft-lg ${s.cardAccent}`}
                 >
                   <div className="flex items-start justify-between gap-2 mb-4">
@@ -166,7 +171,7 @@ export function Dashboard({
                       <span>{offering.practiceOwner}</span>
                     </div>
                   </div>
-                </button>
+                </Link>
               ))}
             </div>
           </div>
