@@ -3,8 +3,11 @@ import { SupabaseClient } from '@supabase/supabase-js'
 export type Offering = {
   id: string
   name: string
+  practiceId: string | null
   practice: string
   practiceOwner: string
+  description: string | null
+  keyOutcomes: string | null
   caseCount: number
 }
 
@@ -26,6 +29,9 @@ export async function fetchDashboardData(supabase: SupabaseClient): Promise<Prop
         id,
         name,
         sort_order,
+        practice_id,
+        description,
+        key_outcomes,
         practices ( name, practice_owner ),
         cases ( count )
       )
@@ -42,8 +48,11 @@ export async function fetchDashboardData(supabase: SupabaseClient): Promise<Prop
     offerings: (row.offerings ?? []).map((o: any) => ({
       id: o.id,
       name: o.name,
+      practiceId: o.practice_id ?? null,
       practice: o.practices?.name ?? '',
       practiceOwner: o.practices?.practice_owner ?? '',
+      description: o.description ?? null,
+      keyOutcomes: o.key_outcomes ?? null,
       caseCount: (o.cases as { count: number }[])?.[0]?.count ?? 0,
     })),
   }))

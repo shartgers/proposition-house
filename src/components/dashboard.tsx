@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
-import { ChevronRight, Briefcase, Users, LogOut, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Loader2, Settings2 } from 'lucide-react'
+import { ChevronRight, Briefcase, Users, LogOut, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Loader2, Settings2, Library } from 'lucide-react'
 import type { Proposition } from '@/lib/dashboard-data'
 import type { OfferingDetail } from '@/lib/offering-data'
 import { fetchOfferingDetail } from '@/lib/offering-data'
@@ -122,6 +122,13 @@ export function Dashboard({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground hidden sm:block">{userEmail}</span>
+          <Link
+            href="/cases"
+            title="Case library"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <Library className="w-4 h-4" />
+          </Link>
           <Link
             href="/practices"
             title="Manage practices"
@@ -275,7 +282,13 @@ export function Dashboard({
             <div className="bg-card rounded-2xl border border-border shadow-soft-xl p-6 w-[520px] max-h-[90vh] overflow-y-auto space-y-4">
               <h3 className="font-heading text-base font-semibold">Edit offering</h3>
               <OfferingForm
-                initial={{ name: editingOffering.name, propositionId: selected.id }}
+                initial={{
+                  name: editingOffering.name,
+                  propositionId: selected.id,
+                  practiceId: editingOffering.practiceId ?? '',
+                  description: editingOffering.description ?? '',
+                  keyOutcomes: editingOffering.keyOutcomes ?? '',
+                }}
                 practices={practices}
                 propositions={propList}
                 onSubmit={(input) => handleEdit(editingId, input)}
