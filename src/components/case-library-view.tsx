@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import type { CaseLibraryRow } from '@/lib/case-library'
+import { filterCases } from '@/lib/case-filters'
 import { allocateCaseAction } from '@/app/actions/cases'
 import { AddCaseButton, EditCaseButton, DeleteCaseButton } from '@/components/case-crud-forms'
 
@@ -236,17 +237,17 @@ export function CaseLibraryView({
 
   const hasFilters = propositionId || offeringId || proofLevel || sector || practiceId
 
-  const filtered = cases.filter((c) => {
-    if (propositionId && c.propositionName !== selectedProp?.name) return false
-    if (offeringId === '__unallocated') { if (c.offeringName !== null) return false }
-    else if (offeringId) { if (c.offeringName !== offeringOptions.find((o) => o.id === offeringId)?.name) return false }
-    if (proofLevel && c.proofLevel !== proofLevel) return false
-    if (sector && c.sector !== sector) return false
-    if (practiceId) {
-      const practiceName = practices.find((p) => p.id === practiceId)?.name
-      if (c.practiceName !== practiceName) return false
-    }
-    return true
+  const resolvedOfferingName =
+    offeringId === '__unallocated' ? null
+    : offeringId ? (offeringOptions.find((o) => o.id === offeringId)?.name ?? '')
+    : undefined
+
+  const filtered = filterCases(cases, {
+    propositionName: selectedProp?.name,
+    offeringName: resolvedOfferingName,
+    proofLevel: proofLevel || undefined,
+    sector: sector || undefined,
+    practiceName: practiceId ? practices.find((p) => p.id === practiceId)?.name : undefined,
   })
 
   const filteredUnallocated = filtered.filter((c) => c.offeringName === null).length
