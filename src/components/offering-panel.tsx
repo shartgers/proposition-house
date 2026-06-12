@@ -1,5 +1,6 @@
 'use client'
 
+import { useDroppable } from '@dnd-kit/core'
 import { X, Briefcase, Users, ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import type { OfferingDetail, CaseDetail, ProofLevel } from '@/lib/offering-data'
@@ -58,6 +59,11 @@ export function OfferingPanel({
   loading: boolean
   onClose: () => void
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'detail-pane',
+    data: { type: 'detail-pane', offeringId: offering?.id },
+  })
+
   return (
     <div className="h-full flex flex-col">
       {/* Panel header */}
@@ -121,12 +127,17 @@ export function OfferingPanel({
             </section>
           )}
 
-          <section>
+          <section
+            ref={setNodeRef}
+            className={`rounded-xl transition-colors ${isOver ? 'bg-accent/60 ring-2 ring-primary/40 -m-2 p-2' : ''}`}
+          >
             <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
               Cases {offering.caseCount > 0 && `· ${offering.caseCount}`}
             </h3>
             {offering.cases.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No cases linked to this offering yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {isOver ? 'Drop to allocate this case' : 'No cases linked to this offering yet. Drag a case here to allocate it.'}
+              </p>
             ) : (
               <div className="space-y-2">
                 {offering.cases.map((c) => <CaseRow key={c.id} c={c} />)}

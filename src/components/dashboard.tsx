@@ -62,7 +62,9 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Allocate a Case dragged from the tray onto a target Offering, optimistically.
-  async function allocateFromTray(caseId: string, targetOfferingId: string) {
+  // When `refreshDetail` is set, re-fetch the open detail pane on success so the
+  // newly allocated Case appears in the Cases list in correct Proof order.
+  async function allocateFromTray(caseId: string, targetOfferingId: string, refreshDetail = false) {
     const prevCases = unallocatedCases
     const dragged = prevCases?.find((c) => c.id === caseId)
     if (!dragged) return
@@ -72,6 +74,7 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
     setAllocError(null)
     try {
       await allocateCaseAction(caseId, targetOfferingId)
+      if (refreshDetail) setDetailRefreshKey((k) => k + 1)
     } catch {
       setUnallocatedCases(prevCases)
       setLocalOfferingsMap(rollback)
@@ -90,6 +93,12 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
     // tray → Offering card
     if (activeData.source === 'tray' && overData?.type === 'offering' && overData.offeringId) {
       allocateFromTray(caseId, overData.offeringId)
+      return
+    }
+    // tray → open Offering detail pane
+    if (activeData.source === 'tray' && overData?.type === 'detail-pane' && overData.offeringId) {
+      allocateFromTray(caseId, overData.offeringId, true)
+      return
     }
   }
   return (
