@@ -1,10 +1,9 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Briefcase, Users } from 'lucide-react'
 import { fetchOfferingDetail } from '@/lib/offering-data'
 import { CaseList } from '@/components/case-list'
+import { createClient } from '@/lib/supabase/server'
 
 const PROOF_COLOURS: Record<string, string> = {
   High: 'bg-emerald-100 text-emerald-700',
@@ -21,21 +20,7 @@ export default async function OfferingPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ back?: string }>
 }) {
-  const cookieStore = await cookies()
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
+  const supabase = await createClient()
 
   const {
     data: { user },

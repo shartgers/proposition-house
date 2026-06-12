@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import Link from 'next/link'
 import { ChevronRight, Briefcase, Users, LogOut, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Loader2, Settings2, Library } from 'lucide-react'
-import type { Proposition } from '@/lib/dashboard-data'
+import type { PropositionView, OfferingView } from '@/lib/views'
 import type { OfferingDetail } from '@/lib/offering-data'
 import { fetchOfferingDetail } from '@/lib/offering-data'
 import { OfferingPanel } from '@/components/offering-panel'
@@ -33,7 +33,7 @@ export function Dashboard({
   userEmail,
   userInitials,
 }: {
-  propositions: Proposition[]
+  propositions: PropositionView[]
   practices: Practice[]
   initialPropositionNumber: string
   userEmail: string
@@ -43,7 +43,6 @@ export function Dashboard({
   const [selectedId, setSelectedId] = useState(initial.id)
   const selected = propositions.find((p) => p.id === selectedId)!
   const s = STYLES[selected.number as keyof typeof STYLES]
-  const totalCases = selected.offerings.reduce((n, o) => n + o.caseCount, 0)
 
   // Offering detail panel
   const [activeOfferingId, setActiveOfferingId] = useState<string | null>(null)
@@ -54,6 +53,19 @@ export function Dashboard({
   // Add / edit form
   const [showAddForm, setShowAddForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+
+  // Local offerings state (per-proposition) for optimistic reordering
+  const [localOfferingsMap, setLocalOfferingsMap] = useState<Record<string, OfferingView[]>>(() =>
+    Object.fromEntries(propositions.map((p) => [p.id, p.offerings]))
+  )
+  // Sync when server-side propositions prop changes (after revalidation)
+  useEffect(() => {
+    setLocalOfferingsMap(Object.fromEntries(propositions.map((p) => [p.id, p.offerings])))
+  }, [propositions])
+
+  // Move up / down
+  const [movePending, startMoveTransition] = useTransition()
+  const [moveError, setMoveError] = useState<string | null>(null)
 
   // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -83,6 +95,30 @@ export function Dashboard({
     setActiveOfferingId(null)
   }
 
+  function handleMove(offeringId: string, direction: 'up' | 'down') {
+    const current = localOfferingsMap[selectedId] ?? []
+    const idx = current.findIndex((o) => o.id === offeringId)
+    if (idx === -1) return
+    if (direction === 'up' && idx === 0) return
+    if (direction === 'down' && idx === current.length - 1) return
+
+    // Optimistic swap
+    const next = [...current]
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    ;[next[idx], next[swapIdx]] = [next[swapIdx], next[idx]]
+    setLocalOfferingsMap((prev) => ({ ...prev, [selectedId]: next }))
+    setMoveError(null)
+
+    startMoveTransition(async () => {
+      try {
+        await moveOfferingAction(offeringId, direction)
+      } catch {
+        // Roll back and surface error
+        setLocalOfferingsMap((prev) => ({ ...prev, [selectedId]: current }))
+        setMoveError('Failed to reorder offering. Please try again.')
+      }
+    })
+  }
 
   async function handleAdd(input: Parameters<typeof createOfferingAction>[0]) {
     await createOfferingAction(input)
@@ -112,6 +148,8 @@ export function Dashboard({
   }
 
   const propList = propositions.map((p) => ({ id: p.id, number: p.number, name: p.name }))
+  const localOfferings = localOfferingsMap[selectedId] ?? selected.offerings
+  const totalCases = localOfferings.reduce((n, o) => n + o.caseCount, 0)
 
   return (
     <div className="flex flex-col h-screen bg-background">
@@ -183,7 +221,7 @@ export function Dashboard({
               <div>
                 <p className={`text-xs font-semibold uppercase tracking-widest mb-1 ${s.num}`}>{selected.number}</p>
                 <h2 className="font-heading text-2xl font-semibold">{selected.name}</h2>
-                <p className="text-muted-foreground text-sm mt-1.5">{selected.offerings.length} offerings · {totalCases} cases</p>
+                <p className="text-muted-foreground text-sm mt-1.5">{localOfferings.length} offerings · {totalCases} cases</p>
               </div>
               <button
                 onClick={() => { setShowAddForm(true); setEditingId(null); setActiveOfferingId(null) }}
@@ -194,8 +232,14 @@ export function Dashboard({
               </button>
             </div>
 
+            {moveError && (
+              <div className="mb-4 rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5">
+                <p className="text-sm text-rose-700">{moveError}</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-4">
-              {selected.offerings.map((offering, idx) => {
+              {localOfferings.map((offering, idx) => {
                 const isOfferingActive = activeOfferingId === offering.id
                 const isEditing = editingId === offering.id
 
