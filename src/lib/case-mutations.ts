@@ -1,4 +1,60 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import type { ProofLevel } from '@/lib/db/types'
+
+export type CaseInput = {
+  clientName: string
+  sector: string
+  dateRange: string
+  proofLevel: ProofLevel
+  description: string
+  result: string
+  propositionId: string
+}
+
+export async function createCase(
+  supabase: SupabaseClient,
+  input: CaseInput
+): Promise<{ id: string }> {
+  const { data, error } = await supabase
+    .from('cases')
+    .insert({
+      client_name: input.clientName,
+      sector: input.sector,
+      date_range: input.dateRange,
+      proof_level: input.proofLevel,
+      description: input.description,
+      result: input.result,
+      proposition_id: input.propositionId,
+      offering_id: null,
+    })
+    .select('id')
+    .single()
+
+  if (error) throw error
+  return { id: data.id }
+}
+
+export async function updateCase(
+  supabase: SupabaseClient,
+  id: string,
+  input: Partial<Omit<CaseInput, 'propositionId'>>
+): Promise<void> {
+  const patch: Record<string, unknown> = {}
+  if (input.clientName !== undefined) patch.client_name = input.clientName
+  if (input.sector !== undefined) patch.sector = input.sector
+  if (input.dateRange !== undefined) patch.date_range = input.dateRange
+  if (input.proofLevel !== undefined) patch.proof_level = input.proofLevel
+  if (input.description !== undefined) patch.description = input.description
+  if (input.result !== undefined) patch.result = input.result
+
+  const { error } = await supabase.from('cases').update(patch).eq('id', id)
+  if (error) throw error
+}
+
+export async function deleteCase(supabase: SupabaseClient, id: string): Promise<void> {
+  const { error } = await supabase.from('cases').delete().eq('id', id)
+  if (error) throw error
+}
 
 export async function allocateCase(
   supabase: SupabaseClient,

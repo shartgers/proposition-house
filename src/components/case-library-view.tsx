@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import type { CaseLibraryRow } from '@/lib/case-library'
 import { allocateCaseAction } from '@/app/actions/cases'
+import { AddCaseButton, EditCaseButton, DeleteCaseButton } from '@/components/case-crud-forms'
 
 type PropositionOption = { id: string; number: string; name: string; offerings: { id: string; name: string }[] }
 type PracticeOption = { id: string; name: string }
@@ -51,10 +52,14 @@ function CaseRow({
   row,
   propositions,
   onAllocated,
+  onUpdated,
+  onDeleted,
 }: {
   row: CaseLibraryRow
   propositions: PropositionOption[]
   onAllocated: (caseId: string, offeringName: string, practiceName: string | null, propositionName: string) => void
+  onUpdated: (caseId: string, patch: Partial<CaseLibraryRow>) => void
+  onDeleted: (caseId: string) => void
 }) {
   const [open, setOpen] = useState(false)
   const [selectedOfferingId, setSelectedOfferingId] = useState('')
@@ -144,6 +149,12 @@ function CaseRow({
               </button>
             </div>
           </div>
+
+          {/* Edit / Delete */}
+          <div className="pt-1 border-t border-border flex gap-1">
+            <EditCaseButton row={row} onUpdated={(patch) => onUpdated(row.id, patch)} />
+            <DeleteCaseButton caseId={row.id} clientName={row.clientName} onDeleted={() => onDeleted(row.id)} />
+          </div>
         </div>
       )}
     </div>
@@ -202,7 +213,24 @@ export function CaseLibraryView({
       )
     )
     if (wasUnallocated) setUnallocatedCount((n) => n - 1)
-    // Sync server state in the background so page data stays fresh on next visit
+    router.refresh()
+  }
+
+  function handleUpdated(caseId: string, patch: Partial<CaseLibraryRow>) {
+    setCases((prev) => prev.map((c) => (c.id === caseId ? { ...c, ...patch } : c)))
+    router.refresh()
+  }
+
+  function handleDeleted(caseId: string) {
+    const deleted = cases.find((c) => c.id === caseId)
+    if (deleted?.offeringName === null) setUnallocatedCount((n) => n - 1)
+    setCases((prev) => prev.filter((c) => c.id !== caseId))
+    router.refresh()
+  }
+
+  function handleAdded(row: CaseLibraryRow) {
+    setCases((prev) => [...prev, row])
+    setUnallocatedCount((n) => n + 1)
     router.refresh()
   }
 
@@ -238,6 +266,9 @@ export function CaseLibraryView({
             Showing {filtered.length}{filtered.length !== cases.length ? ` · ${filteredUnallocated} unallocated` : ''}
           </span>
         )}
+        <div className="ml-auto">
+          <AddCaseButton propositions={propositions} onAdded={handleAdded} />
+        </div>
       </div>
 
       {/* Filter bar */}
@@ -309,6 +340,8 @@ export function CaseLibraryView({
               row={c}
               propositions={propositions}
               onAllocated={handleAllocated}
+              onUpdated={handleUpdated}
+              onDeleted={handleDeleted}
             />
           ))}
         </div>
