@@ -23,6 +23,8 @@ export type PracticeRow = {
   id: string
   name: string
   practice_owner: string
+  unit: PracticeUnit | null
+  sort_order: number
 }
 
 export type OfferingRow = {

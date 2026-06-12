@@ -264,8 +264,14 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
       setPractices((prev) =>
         [
           ...prev,
-          { id: result.id, name: input.name, practiceOwner: input.practiceOwner, unit: input.unit ?? null },
-        ].sort((a, b) => a.name.localeCompare(b.name))
+          {
+            id: result.id,
+            name: input.name,
+            practiceOwner: input.practiceOwner,
+            unit: input.unit ?? null,
+            sortOrder: result.sortOrder,
+          },
+        ].sort((a, b) => a.sortOrder - b.sortOrder)
       )
       setShowAdd(false)
     })
@@ -277,13 +283,11 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
     startEditTransition(async () => {
       await updatePracticeAction(id, input)
       setPractices((prev) =>
-        prev
-          .map((p) =>
-            p.id === id
-              ? { ...p, name: input.name, practiceOwner: input.practiceOwner, unit: input.unit ?? null }
-              : p
-          )
-          .sort((a, b) => a.name.localeCompare(b.name))
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, name: input.name, practiceOwner: input.practiceOwner, unit: input.unit ?? null }
+            : p
+        )
       )
       setEditingPractice(null)
     })
@@ -324,15 +328,22 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
       : null
     if (currentUnit === targetUnit) return
 
+    // The dropped practice goes to the bottom of the board: one past the current max.
+    const nextOrder = Math.max(0, ...practices.map((p) => p.sortOrder)) + 1
+
     // Optimistic update
     const previousPractices = practices
-    setPractices((prev) => prev.map((p) => (p.id === practiceId ? { ...p, unit: targetUnit } : p)))
+    setPractices((prev) =>
+      prev
+        .map((p) => (p.id === practiceId ? { ...p, unit: targetUnit, sortOrder: nextOrder } : p))
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+    )
     setDragError(null)
 
     // Persist — awaited inside a transition so concurrent features stay consistent
     startDragTransition(async () => {
       try {
-        await updatePracticeAction(practiceId, { unit: targetUnit })
+        await updatePracticeAction(practiceId, { unit: targetUnit, sortOrder: nextOrder })
       } catch {
         // Roll back the optimistic update and surface the error
         setPractices(previousPractices)

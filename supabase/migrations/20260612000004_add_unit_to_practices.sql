@@ -1,5 +1,5 @@
 alter table practices
-  add column unit text
+  add column if not exists unit text
     check (
       unit is null
       or unit in (

@@ -41,10 +41,23 @@ describe('getPractices', () => {
     expect(typeof first.practiceOwner).toBe('string')
   })
 
-  it('returns practices sorted by name', async () => {
+  it('returns practices in ascending sortOrder (manual board order)', async () => {
     const practices = await getPractices(supabase)
-    const names = practices.map((p) => p.name)
-    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
+    const orders = practices.map((p) => p.sortOrder)
+    expect(orders).toEqual([...orders].sort((a, b) => a - b))
+  })
+
+  it('a newly created practice gets a sortOrder past the current max', async () => {
+    const before = await getPractices(supabase)
+    const maxBefore = Math.max(0, ...before.map((p) => p.sortOrder))
+
+    const result = await createPractice(supabase, {
+      name: '__Bottom Practice',
+      practiceOwner: 'Owner',
+    })
+    createdPracticeIds.push(result.id)
+
+    expect(result.sortOrder).toBeGreaterThan(maxBefore)
   })
 })
 

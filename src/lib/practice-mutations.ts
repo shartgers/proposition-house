@@ -9,53 +9,70 @@ export type PracticeInput = {
   unit?: PracticeUnit | null
 }
 
+// Patch for updatePractice — the form fields plus the manual ordering position,
+// which is set when a practice is dragged into a unit (it goes to the bottom).
+export type PracticeUpdate = Partial<PracticeInput> & { sortOrder?: number }
+
 export type Practice = {
   id: string
   name: string
   practiceOwner: string
   unit: PracticeUnit | null
+  sortOrder: number
 }
 
 export async function getPractices(supabase: SupabaseClient): Promise<Practice[]> {
   const { data, error } = await supabase
     .from('practices')
-    .select('id, name, practice_owner, unit')
-    .order('name')
+    .select('id, name, practice_owner, unit, sort_order')
+    .order('sort_order')
   if (error) throw error
   return (data ?? []).map((p) => ({
     id: p.id,
     name: p.name,
     practiceOwner: p.practice_owner,
     unit: (p.unit as PracticeUnit | null) ?? null,
+    sortOrder: p.sort_order ?? 0,
   }))
 }
 
 export async function createPractice(
   supabase: SupabaseClient,
   input: PracticeInput
-): Promise<{ id: string }> {
+): Promise<{ id: string; sortOrder: number }> {
+  // New practices go to the bottom of the board: one past the current max.
+  const { data: maxRow } = await supabase
+    .from('practices')
+    .select('sort_order')
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const sortOrder = (maxRow?.sort_order ?? 0) + 1
+
   const { data, error } = await supabase
     .from('practices')
     .insert({
       name: input.name,
       practice_owner: input.practiceOwner,
       unit: input.unit ?? null,
+      sort_order: sortOrder,
     })
-    .select('id')
+    .select('id, sort_order')
     .single()
   if (error) throw error
-  return { id: data.id }
+  return { id: data.id, sortOrder: data.sort_order }
 }
 
 export async function updatePractice(
   supabase: SupabaseClient,
   id: string,
-  input: Partial<PracticeInput>
+  input: PracticeUpdate
 ): Promise<void> {
   const patch: Record<string, unknown> = {}
   if (input.name !== undefined) patch.name = input.name
   if (input.practiceOwner !== undefined) patch.practice_owner = input.practiceOwner
   if (input.unit !== undefined) patch.unit = input.unit
+  if (input.sortOrder !== undefined) patch.sort_order = input.sortOrder
 
   const { error } = await supabase.from('practices').update(patch).eq('id', id)
   if (error) throw error

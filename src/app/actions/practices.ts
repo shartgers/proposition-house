@@ -7,6 +7,7 @@ import {
   updatePractice,
   deletePractice,
   type PracticeInput,
+  type PracticeUpdate,
 } from '@/lib/practice-mutations'
 
 export async function createPracticeAction(input: PracticeInput) {
@@ -17,7 +18,7 @@ export async function createPracticeAction(input: PracticeInput) {
   return result
 }
 
-export async function updatePracticeAction(id: string, input: Partial<PracticeInput>) {
+export async function updatePracticeAction(id: string, input: PracticeUpdate) {
   const supabase = await createClient()
   await updatePractice(supabase, id, input)
   revalidatePath('/')

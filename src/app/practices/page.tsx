@@ -29,7 +29,7 @@ export default async function PracticesPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-8 bg-background">
-        <div className="max-w-xl">
+        <div className="max-w-6xl">
           <div className="mb-7">
             <h2 className="font-heading text-2xl font-semibold">Practices</h2>
             <p className="text-muted-foreground text-sm mt-1.5">{practices.length} practice{practices.length !== 1 ? 's' : ''}</p>

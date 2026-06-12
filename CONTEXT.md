@@ -8,13 +8,15 @@ Google SSO via Supabase Auth. All routes require authentication. See ADR-0001.
 
 ## Views
 
-**Dashboard**: Five Proposition columns, each listing its Offerings. Clicking an Offering opens the Offering detail view.
+**Dashboard**: Five Proposition columns, each listing its Offerings. Clicking an Offering opens the Offering detail view. Contains the Case Tray for allocation.
 
-**Offering detail**: Shows the Offering's description, key outcomes/deliverables, Practice, Practice Owner, and associated Cases.
+**Offering detail**: Shows the Offering's description, key outcomes/deliverables, Practice, Practice Owner, and associated Cases. Cases can be unallocated from here via an × button.
+
+**Case Tray**: Collapsible panel below the Offering grid on the Dashboard. Shows all Unallocated Cases across all Propositions; proposition filter auto-syncs with the selected Proposition. Cases are dragged from the tray onto an Offering card or into the Offering detail pane to allocate them. Primary allocation surface for users working in the Dashboard.
 
 **Case detail**: Shows all six Case properties.
 
-**Case library**: Full filterable list of all Cases, including Unallocated Cases. Filters: Proposition, Offering, Proof level, Sector, Practice. Primary surface for allocating Cases to Offerings.
+**Case library**: Full filterable list of all Cases, including Unallocated Cases. Filters: Proposition, Offering, Proof level, Sector, Practice. Secondary allocation surface (always was; Case Tray is now the faster path).
 
 ## Users
 
