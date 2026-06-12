@@ -11,6 +11,7 @@ export type CaseDetail = {
   proofLevel: ProofLevel
   description: string
   result: string
+  propositionId: string
 }
 
 export type OfferingDetail = {
@@ -39,11 +40,11 @@ export function sortCasesByProofLevel(cases: CaseDetail[]): CaseDetail[] {
   return [...cases].sort((a, b) => PROOF_ORDER[a.proofLevel] - PROOF_ORDER[b.proofLevel])
 }
 
-const CASE_COLUMNS = 'id, client_name, sector, date_range, proof_level, description, result'
+const CASE_COLUMNS = 'id, client_name, sector, date_range, proof_level, description, result, proposition_id'
 
 function mapCaseRow(c: {
   id: string; client_name: string; sector: string; date_range: string
-  proof_level: string; description: string; result: string
+  proof_level: string; description: string; result: string; proposition_id: string
 }): CaseDetail {
   return {
     id: c.id,
@@ -53,6 +54,7 @@ function mapCaseRow(c: {
     proofLevel: c.proof_level as ProofLevel,
     description: c.description,
     result: c.result,
+    propositionId: c.proposition_id,
   }
 }
 

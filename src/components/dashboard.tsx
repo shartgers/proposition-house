@@ -2,11 +2,14 @@
 import { useState, useEffect, useTransition } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import type { PropositionView, OfferingView } from '@/lib/views'
+import type { CaseDetail } from '@/lib/offering-data'
+import { fetchAllUnallocatedCases } from '@/lib/offering-data'
 import { applyOptimisticSwap } from '@/lib/dashboard-logic'
 import { createOfferingAction, updateOfferingAction, deleteOfferingAction, moveOfferingAction } from '@/app/actions/offerings'
 import { DashboardHeader } from '@/components/dashboard-header'
 import { PropositionSidebar } from '@/components/proposition-sidebar'
 import { OfferingGrid } from '@/components/offering-grid'
+import { CaseTray } from '@/components/case-tray'
 import { OfferingCRUDDialogs } from '@/components/offering-crud-dialogs'
 import { OfferingDetailLoader } from '@/components/offering-detail-loader'
 
@@ -25,7 +28,20 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
   const [movePending, startMoveTransition] = useTransition()
   const [moveError, setMoveError] = useState<string | null>(null)
   const [deleteTransition, startDeleteTransition] = useTransition()
+  const [trayOpen, setTrayOpen] = useState(false)
+  const [unallocatedCases, setUnallocatedCases] = useState<CaseDetail[] | null>(null)
+  const [trayLoading, setTrayLoading] = useState(false)
+  const [trayPropositionFilter, setTrayPropositionFilter] = useState<string | 'all'>(initial.id)
   const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  // Lazy-fetch the unallocated pool on first tray open (not at page load)
+  useEffect(() => {
+    if (!trayOpen || unallocatedCases !== null || trayLoading) return
+    setTrayLoading(true)
+    fetchAllUnallocatedCases(supabase).then((cases) => {
+      setUnallocatedCases(cases)
+      setTrayLoading(false)
+    })
+  }, [trayOpen, unallocatedCases, trayLoading, supabase])
   const localOfferings = localOfferingsMap[selectedId] ?? selected.offerings
   const propList = propositions.map((p) => ({ id: p.id, number: p.number, name: p.name }))
   function handleMove(offeringId: string, direction: 'up' | 'down') {
@@ -44,12 +60,17 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
       <DashboardHeader userEmail={userEmail} userInitials={userInitials} />
       <div className="flex flex-1 overflow-hidden">
         <PropositionSidebar propositions={propositions} selectedId={selectedId}
-          onSelect={(id) => { setSelectedId(id); setActiveOfferingId(null); setShowAddForm(false); setEditingId(null) }} />
-        <OfferingGrid propositionNumber={selected.number} propositionName={selected.name} offerings={localOfferings}
-          activeOfferingId={activeOfferingId} movePending={movePending} moveError={moveError}
-          onOpenOffering={(id) => { setShowAddForm(false); setEditingId(null); setActiveOfferingId(activeOfferingId === id ? null : id) }}
-          onMove={handleMove} onEdit={(id) => { setEditingId(id); setActiveOfferingId(null) }}
-          onDelete={setDeletingId} onAddOffering={() => { setShowAddForm(true); setEditingId(null); setActiveOfferingId(null) }} />
+          onSelect={(id) => { setSelectedId(id); setActiveOfferingId(null); setShowAddForm(false); setEditingId(null); setTrayPropositionFilter(id) }} />
+        <div className="flex-1 flex flex-col overflow-hidden" style={{ minWidth: 260 }}>
+          <OfferingGrid propositionNumber={selected.number} propositionName={selected.name} offerings={localOfferings}
+            activeOfferingId={activeOfferingId} movePending={movePending} moveError={moveError}
+            onOpenOffering={(id) => { setShowAddForm(false); setEditingId(null); setActiveOfferingId(activeOfferingId === id ? null : id) }}
+            onMove={handleMove} onEdit={(id) => { setEditingId(id); setActiveOfferingId(null) }}
+            onDelete={setDeletingId} onAddOffering={() => { setShowAddForm(true); setEditingId(null); setActiveOfferingId(null) }} />
+          <CaseTray open={trayOpen} onToggle={() => setTrayOpen((v) => !v)}
+            cases={unallocatedCases} loading={trayLoading} propositions={propList}
+            filter={trayPropositionFilter} onFilterChange={setTrayPropositionFilter} />
+        </div>
         <OfferingDetailLoader supabase={supabase} activeOfferingId={activeOfferingId} refreshKey={detailRefreshKey} onClose={() => setActiveOfferingId(null)} />
       </div>
       <OfferingCRUDDialogs showAddForm={showAddForm} onAddCancel={() => setShowAddForm(false)}

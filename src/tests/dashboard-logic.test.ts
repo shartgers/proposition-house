@@ -67,6 +67,7 @@ function makeCase(id: string, proofLevel: ProofLevel = 'Medium'): CaseDetail {
     proofLevel,
     description: 'desc',
     result: 'result',
+    propositionId: 'p1',
   }
 }
 

@@ -90,11 +90,11 @@ describe('fetchAllUnallocatedCases', () => {
 describe('sortCasesByProofLevel', () => {
   it('orders High → Medium-High → Medium → Low-Medium → Ongoing', () => {
     const unsorted: CaseDetail[] = [
-      { id: '5', clientName: '', sector: '', dateRange: '', proofLevel: 'Ongoing', description: '', result: '' },
-      { id: '3', clientName: '', sector: '', dateRange: '', proofLevel: 'Medium', description: '', result: '' },
-      { id: '1', clientName: '', sector: '', dateRange: '', proofLevel: 'High', description: '', result: '' },
-      { id: '4', clientName: '', sector: '', dateRange: '', proofLevel: 'Low-Medium', description: '', result: '' },
-      { id: '2', clientName: '', sector: '', dateRange: '', proofLevel: 'Medium-High', description: '', result: '' },
+      { id: '5', clientName: '', sector: '', dateRange: '', proofLevel: 'Ongoing', description: '', result: '', propositionId: 'p' },
+      { id: '3', clientName: '', sector: '', dateRange: '', proofLevel: 'Medium', description: '', result: '', propositionId: 'p' },
+      { id: '1', clientName: '', sector: '', dateRange: '', proofLevel: 'High', description: '', result: '', propositionId: 'p' },
+      { id: '4', clientName: '', sector: '', dateRange: '', proofLevel: 'Low-Medium', description: '', result: '', propositionId: 'p' },
+      { id: '2', clientName: '', sector: '', dateRange: '', proofLevel: 'Medium-High', description: '', result: '', propositionId: 'p' },
     ]
     const sorted = sortCasesByProofLevel(unsorted)
     expect(sorted.map((c) => c.proofLevel)).toEqual([
