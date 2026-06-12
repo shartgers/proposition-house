@@ -272,20 +272,20 @@ export function Dashboard({
                     {/* Action toolbar — appears on hover */}
                     <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-0.5 bg-card/90 backdrop-blur-sm rounded-lg border border-border px-1 py-0.5 shadow-soft">
                       <button
-                        onClick={() => moveOfferingAction(offering.id, 'up')}
-                        disabled={idx === 0}
+                        onClick={() => handleMove(offering.id, 'up')}
+                        disabled={idx === 0 || movePending}
                         title="Move up"
                         className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-30"
                       >
-                        <ChevronUp className="w-3.5 h-3.5" />
+                        {movePending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronUp className="w-3.5 h-3.5" />}
                       </button>
                       <button
-                        onClick={() => moveOfferingAction(offering.id, 'down')}
-                        disabled={idx === selected.offerings.length - 1}
+                        onClick={() => handleMove(offering.id, 'down')}
+                        disabled={idx === localOfferings.length - 1 || movePending}
                         title="Move down"
                         className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-30"
                       >
-                        <ChevronDown className="w-3.5 h-3.5" />
+                        {movePending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ChevronDown className="w-3.5 h-3.5" />}
                       </button>
                       <div className="w-px h-4 bg-border mx-0.5" />
                       <button
@@ -303,6 +303,7 @@ export function Dashboard({
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
+
                   </div>
                 )
               })}
