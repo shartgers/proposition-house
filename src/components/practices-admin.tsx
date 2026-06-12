@@ -1,7 +1,18 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
+import { Plus, Pencil, Trash2, Loader2, GripVertical } from 'lucide-react'
 import type { Practice, PracticeInput } from '@/lib/practice-mutations'
 import { PRACTICE_UNITS } from '@/lib/db/types'
 import type { PracticeUnit } from '@/lib/db/types'
@@ -15,6 +26,8 @@ const inputCls =
   'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary'
 const labelCls =
   'block text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1.5'
+
+// ─── Form ────────────────────────────────────────────────────────────────────
 
 function PracticeForm({
   initial,
@@ -74,9 +87,7 @@ function PracticeForm({
           Cancel
         </button>
         <button
-          onClick={() =>
-            onSubmit({ name: name.trim(), practiceOwner: owner.trim(), unit: unit || null })
-          }
+          onClick={() => onSubmit({ name: name.trim(), practiceOwner: owner.trim(), unit: unit || null })}
           disabled={loading || !name.trim()}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
         >
@@ -88,23 +99,46 @@ function PracticeForm({
   )
 }
 
+// ─── Practice card ────────────────────────────────────────────────────────────
+
 function PracticeCard({
   practice,
   onEdit,
   onDelete,
+  dragListeners,
+  isDragging,
 }: {
   practice: Practice
   onEdit: (p: Practice) => void
   onDelete: (p: Practice) => void
+  dragListeners?: Record<string, unknown>
+  isDragging?: boolean
 }) {
   return (
-    <div className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-card shadow-soft hover:border-border/80 transition-colors">
+    <div
+      className={`group flex items-center gap-2 px-3 py-3 rounded-xl border border-border bg-card shadow-soft transition-colors ${
+        isDragging ? 'opacity-40' : 'hover:border-border/80'
+      }`}
+    >
+      {/* Drag handle */}
+      <button
+        {...dragListeners}
+        className="flex-shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors touch-none"
+        tabIndex={-1}
+        aria-label="Drag to change unit"
+      >
+        <GripVertical className="w-4 h-4" />
+      </button>
+
+      {/* Content */}
       <div className="flex-1 min-w-0">
         <p className="font-heading text-sm font-semibold truncate">{practice.name}</p>
         <p className="text-xs text-muted-foreground mt-0.5 truncate">
           {practice.practiceOwner || '—'}
         </p>
       </div>
+
+      {/* Actions */}
       <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
         <button
           onClick={() => onEdit(practice)}
@@ -125,23 +159,110 @@ function PracticeCard({
   )
 }
 
+function DraggablePracticeCard({
+  practice,
+  onEdit,
+  onDelete,
+}: {
+  practice: Practice
+  onEdit: (p: Practice) => void
+  onDelete: (p: Practice) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: practice.id,
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      style={
+        transform
+          ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`, zIndex: 1 }
+          : undefined
+      }
+    >
+      <PracticeCard
+        practice={practice}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        dragListeners={listeners as Record<string, unknown>}
+        isDragging={isDragging}
+      />
+    </div>
+  )
+}
+
+// ─── Droppable unit column ────────────────────────────────────────────────────
+
+const UNASSIGNED_ID = '__unassigned__'
+
+function DroppableColumn({
+  id,
+  heading,
+  practices,
+  onEdit,
+  onDelete,
+}: {
+  id: string
+  heading: string
+  practices: Practice[]
+  onEdit: (p: Practice) => void
+  onDelete: (p: Practice) => void
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+
+  return (
+    <div className="space-y-2">
+      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest pb-2 border-b border-border">
+        {heading}
+      </h3>
+      <div
+        ref={setNodeRef}
+        className={`space-y-2 min-h-[56px] rounded-lg p-1 -m-1 transition-colors ${
+          isOver ? 'bg-primary/5 ring-1 ring-inset ring-primary/25' : ''
+        }`}
+      >
+        {practices.length === 0 && !isOver ? (
+          <p className="text-xs text-muted-foreground italic py-1 px-1">No practices</p>
+        ) : (
+          practices.map((p) => (
+            <DraggablePracticeCard key={p.id} practice={p} onEdit={onEdit} onDelete={onDelete} />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function PracticesAdmin({ initial }: { initial: Practice[] }) {
   const [practices, setPractices] = useState<Practice[]>(initial)
   const [showAdd, setShowAdd] = useState(false)
   const [editingPractice, setEditingPractice] = useState<Practice | null>(null)
   const [deletingPractice, setDeletingPractice] = useState<Practice | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [activePractice, setActivePractice] = useState<Practice | null>(null)
+
   const [addPending, startAddTransition] = useTransition()
   const [editPending, startEditTransition] = useTransition()
   const [deletePending, startDeleteTransition] = useTransition()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  )
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
 
   function handleAdd(input: PracticeInput) {
     startAddTransition(async () => {
       const result = await createPracticeAction(input)
       setPractices((prev) =>
-        [...prev, { id: result.id, name: input.name, practiceOwner: input.practiceOwner, unit: input.unit ?? null }].sort(
-          (a, b) => a.name.localeCompare(b.name)
-        )
+        [
+          ...prev,
+          { id: result.id, name: input.name, practiceOwner: input.practiceOwner, unit: input.unit ?? null },
+        ].sort((a, b) => a.name.localeCompare(b.name))
       )
       setShowAdd(false)
     })
@@ -179,7 +300,36 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
     })
   }
 
-  // Group practices by unit
+  // ── Drag handlers ────────────────────────────────────────────────────────────
+
+  function handleDragStart({ active }: DragStartEvent) {
+    setActivePractice(practices.find((p) => p.id === active.id) ?? null)
+  }
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    setActivePractice(null)
+    if (!over) return
+
+    const practiceId = active.id as string
+    const targetUnit = over.id === UNASSIGNED_ID ? null : (over.id as PracticeUnit)
+
+    const practice = practices.find((p) => p.id === practiceId)
+    if (!practice) return
+
+    const currentUnit = (PRACTICE_UNITS as readonly string[]).includes(practice.unit ?? '')
+      ? practice.unit
+      : null
+    if (currentUnit === targetUnit) return
+
+    // Optimistic update
+    setPractices((prev) => prev.map((p) => (p.id === practiceId ? { ...p, unit: targetUnit } : p)))
+
+    // Persist (fire and forget)
+    updatePracticeAction(practiceId, { unit: targetUnit })
+  }
+
+  // ── Group by unit ────────────────────────────────────────────────────────────
+
   const byUnit = new Map<PracticeUnit | null, Practice[]>()
   for (const u of PRACTICE_UNITS) byUnit.set(u, [])
   byUnit.set(null, [])
@@ -191,81 +341,87 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
   }
   const unassigned = byUnit.get(null) ?? []
 
+  // ── Render ───────────────────────────────────────────────────────────────────
+
   return (
-    <div className="space-y-6">
-      {/* Header row */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => { setShowAdd(true); setEditingPractice(null) }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          Add practice
-        </button>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="space-y-6">
+        {/* Add button */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => { setShowAdd(true); setEditingPractice(null) }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add practice
+          </button>
+        </div>
+
+        {/* Add form */}
+        {showAdd && (
+          <div className="rounded-xl border border-border bg-card shadow-soft p-5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
+              New practice
+            </p>
+            <PracticeForm
+              onSubmit={handleAdd}
+              onCancel={() => setShowAdd(false)}
+              submitLabel="Add practice"
+              loading={addPending}
+            />
+          </div>
+        )}
+
+        {practices.length === 0 && !showAdd ? (
+          <p className="text-sm text-muted-foreground py-4">No practices yet.</p>
+        ) : (
+          <>
+            {/* 4-column unit grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+              {PRACTICE_UNITS.map((unit) => (
+                <DroppableColumn
+                  key={unit}
+                  id={unit}
+                  heading={unit}
+                  practices={byUnit.get(unit) ?? []}
+                  onEdit={(p) => { setEditingPractice(p); setShowAdd(false) }}
+                  onDelete={(p) => { setDeletingPractice(p); setDeleteError(null) }}
+                />
+              ))}
+            </div>
+
+            {/* Unassigned */}
+            {unassigned.length > 0 && (
+              <DroppableColumn
+                id={UNASSIGNED_ID}
+                heading="Unassigned"
+                practices={unassigned}
+                onEdit={(p) => { setEditingPractice(p); setShowAdd(false) }}
+                onDelete={(p) => { setDeletingPractice(p); setDeleteError(null) }}
+              />
+            )}
+          </>
+        )}
       </div>
 
-      {/* Add form */}
-      {showAdd && (
-        <div className="rounded-xl border border-border bg-card shadow-soft p-5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-4">
-            New practice
-          </p>
-          <PracticeForm
-            onSubmit={handleAdd}
-            onCancel={() => setShowAdd(false)}
-            submitLabel="Add practice"
-            loading={addPending}
-          />
-        </div>
-      )}
-
-      {/* 4-column unit grid */}
-      {practices.length === 0 && !showAdd ? (
-        <p className="text-sm text-muted-foreground py-4">No practices yet.</p>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            {PRACTICE_UNITS.map((unit) => (
-              <div key={unit} className="space-y-2">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest pb-2 border-b border-border">
-                  {unit}
-                </h3>
-                {(byUnit.get(unit) ?? []).length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic py-1">No practices</p>
-                ) : (
-                  (byUnit.get(unit) ?? []).map((p) => (
-                    <PracticeCard
-                      key={p.id}
-                      practice={p}
-                      onEdit={(practice) => { setEditingPractice(practice); setShowAdd(false) }}
-                      onDelete={(practice) => { setDeletingPractice(practice); setDeleteError(null) }}
-                    />
-                  ))
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Unassigned practices */}
-          {unassigned.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-border">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest pb-2">
-                Unassigned
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
-                {unassigned.map((p) => (
-                  <PracticeCard
-                    key={p.id}
-                    practice={p}
-                    onEdit={(practice) => { setEditingPractice(practice); setShowAdd(false) }}
-                    onDelete={(practice) => { setDeletingPractice(practice); setDeleteError(null) }}
-                  />
-                ))}
-              </div>
+      {/* Drag overlay — ghost card that follows the pointer */}
+      <DragOverlay dropAnimation={null}>
+        {activePractice ? (
+          <div className="flex items-center gap-2 px-3 py-3 rounded-xl border border-primary/30 bg-card shadow-xl opacity-95 rotate-1 cursor-grabbing">
+            <GripVertical className="w-4 h-4 text-muted-foreground/40 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="font-heading text-sm font-semibold truncate">{activePractice.name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                {activePractice.practiceOwner || '—'}
+              </p>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        ) : null}
+      </DragOverlay>
 
       {/* Edit dialog */}
       {editingPractice && (
@@ -320,6 +476,6 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
           </div>
         </div>
       )}
-    </div>
+    </DndContext>
   )
 }
