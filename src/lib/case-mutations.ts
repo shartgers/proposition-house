@@ -56,6 +56,21 @@ export async function deleteCase(supabase: SupabaseClient, id: string): Promise<
   if (error) throw error
 }
 
+export async function unallocateCase(
+  supabase: SupabaseClient,
+  caseId: string
+): Promise<void> {
+  // Send the case back to the unallocated pool. proposition_id is left as-is:
+  // it already matches the proposition the case was allocated under, which
+  // remains the correct value for the unallocated state.
+  const { error } = await supabase
+    .from('cases')
+    .update({ offering_id: null })
+    .eq('id', caseId)
+
+  if (error) throw error
+}
+
 export async function allocateCase(
   supabase: SupabaseClient,
   caseId: string,

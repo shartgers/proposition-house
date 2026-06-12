@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAuthenticatedClient } from '@/lib/supabase/server'
-import { allocateCase, createCase, updateCase, deleteCase } from '@/lib/case-mutations'
+import { allocateCase, unallocateCase, createCase, updateCase, deleteCase } from '@/lib/case-mutations'
 import type { CaseInput } from '@/lib/case-mutations'
 
 // Returns the offering's name + practice + proposition so callers can update local state
@@ -35,6 +35,15 @@ export async function allocateCaseAction(
     practiceName: (o?.practices as { name: string } | null)?.name ?? null,
     propositionName: (o?.propositions as { name: string } | null)?.name ?? '',
   }
+}
+
+export async function unallocateCaseAction(caseId: string): Promise<void> {
+  const { supabase } = await createAuthenticatedClient()
+
+  await unallocateCase(supabase, caseId)
+
+  revalidatePath('/cases')
+  revalidatePath('/')
 }
 
 export async function createCaseAction(input: CaseInput): Promise<{ id: string }> {
