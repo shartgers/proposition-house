@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useTransition } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
-import { ChevronRight, Briefcase, Users, LogOut, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { ChevronRight, Briefcase, Users, LogOut, Plus, Pencil, Trash2, ChevronUp, ChevronDown, Loader2, Settings2 } from 'lucide-react'
 import type { Proposition } from '@/lib/dashboard-data'
 import type { OfferingDetail } from '@/lib/offering-data'
 import { fetchOfferingDetail } from '@/lib/offering-data'
@@ -121,6 +122,13 @@ export function Dashboard({
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground hidden sm:block">{userEmail}</span>
+          <Link
+            href="/practices"
+            title="Manage practices"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <Settings2 className="w-4 h-4" />
+          </Link>
           <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-semibold flex-shrink-0">
             {userInitials}
           </div>
