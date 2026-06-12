@@ -13,10 +13,10 @@ const PROOF_COLOURS: Record<ProofLevel, string> = {
   Ongoing: 'bg-slate-100 text-slate-600',
 }
 
-function CaseRow({ c }: { c: CaseDetail }) {
+function CaseRow({ c, onUnallocate }: { c: CaseDetail; onUnallocate: (c: CaseDetail) => void }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className="rounded-xl border border-border bg-background overflow-hidden">
+    <div className="group/case relative rounded-xl border border-border bg-background overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/50 transition-colors"
@@ -34,6 +34,13 @@ function CaseRow({ c }: { c: CaseDetail }) {
           ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
           : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
         }
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); onUnallocate(c) }}
+        title="Unallocate case"
+        className="absolute top-2 right-9 hidden group-hover/case:flex w-6 h-6 items-center justify-center rounded text-muted-foreground hover:text-rose-600 hover:bg-rose-50 transition-colors"
+      >
+        <X className="w-3.5 h-3.5" />
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
@@ -54,10 +61,12 @@ export function OfferingPanel({
   offering,
   loading,
   onClose,
+  onUnallocateCase,
 }: {
   offering: OfferingDetail | null
   loading: boolean
   onClose: () => void
+  onUnallocateCase: (c: CaseDetail) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'detail-pane',
@@ -140,7 +149,7 @@ export function OfferingPanel({
               </p>
             ) : (
               <div className="space-y-2">
-                {offering.cases.map((c) => <CaseRow key={c.id} c={c} />)}
+                {offering.cases.map((c) => <CaseRow key={c.id} c={c} onUnallocate={onUnallocateCase} />)}
               </div>
             )}
           </section>

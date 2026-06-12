@@ -5,9 +5,9 @@ import type { PropositionView, OfferingView } from '@/lib/views'
 import type { CaseDetail } from '@/lib/offering-data'
 import { fetchAllUnallocatedCases } from '@/lib/offering-data'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { applyOptimisticSwap, applyOptimisticCaseCountUpdate, removeCaseFromUnallocated } from '@/lib/dashboard-logic'
+import { applyOptimisticSwap, applyOptimisticCaseCountUpdate, removeCaseFromUnallocated, addCaseToUnallocated } from '@/lib/dashboard-logic'
 import { createOfferingAction, updateOfferingAction, deleteOfferingAction, moveOfferingAction } from '@/app/actions/offerings'
-import { allocateCaseAction } from '@/app/actions/cases'
+import { allocateCaseAction, unallocateCaseAction } from '@/app/actions/cases'
 import { DashboardHeader } from '@/components/dashboard-header'
 import { PropositionSidebar } from '@/components/proposition-sidebar'
 import { OfferingGrid } from '@/components/offering-grid'
@@ -82,6 +82,25 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
     }
   }
 
+  // Send a Case in the open detail pane back to the unallocated pool via the × button.
+  async function handleUnallocateCase(c: CaseDetail) {
+    const sourceOfferingId = activeOfferingId
+    if (!sourceOfferingId) return
+    const prevCases = unallocatedCases
+    const { next, rollback } = applyOptimisticCaseCountUpdate(localOfferingsMap, { targetOfferingId: sourceOfferingId, delta: -1 })
+    setLocalOfferingsMap(next)
+    if (prevCases !== null) setUnallocatedCases(addCaseToUnallocated(prevCases, c))
+    setAllocError(null)
+    try {
+      await unallocateCaseAction(c.id)
+      setDetailRefreshKey((k) => k + 1)
+    } catch {
+      setLocalOfferingsMap(rollback)
+      setUnallocatedCases(prevCases)
+      setAllocError('Failed to unallocate case. Please try again.')
+    }
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over) return
@@ -118,7 +137,7 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
               cases={unallocatedCases} loading={trayLoading} propositions={propList}
               filter={trayPropositionFilter} onFilterChange={setTrayPropositionFilter} />
           </div>
-          <OfferingDetailLoader supabase={supabase} activeOfferingId={activeOfferingId} refreshKey={detailRefreshKey} onClose={() => setActiveOfferingId(null)} />
+          <OfferingDetailLoader supabase={supabase} activeOfferingId={activeOfferingId} refreshKey={detailRefreshKey} onClose={() => setActiveOfferingId(null)} onUnallocateCase={handleUnallocateCase} />
         </DndContext>
       </div>
       <OfferingCRUDDialogs showAddForm={showAddForm} onAddCancel={() => setShowAddForm(false)}
