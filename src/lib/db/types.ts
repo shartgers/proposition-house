@@ -13,19 +13,19 @@ export const PRACTICE_UNITS: PracticeUnit[] = [
   'Data Platform Engineering',
 ]
 
-export type Proposition = {
+export type PropositionRow = {
   id: string
   number: string
   name: string
 }
 
-export type Practice = {
+export type PracticeRow = {
   id: string
   name: string
   practice_owner: string
 }
 
-export type Offering = {
+export type OfferingRow = {
   id: string
   name: string
   description: string | null
@@ -35,7 +35,7 @@ export type Offering = {
   practice_id: string | null
 }
 
-export type Case = {
+export type CaseRow = {
   id: string
   client_name: string
   sector: string

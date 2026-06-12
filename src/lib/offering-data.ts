@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import type { ProofLevel } from './db/types'
 
-export type ProofLevel = 'High' | 'Medium-High' | 'Medium' | 'Low-Medium' | 'Ongoing'
+export type { ProofLevel }
 
 export type CaseDetail = {
   id: string

@@ -25,3 +25,16 @@ export async function createClient() {
     }
   );
 }
+
+/**
+ * Creates a Supabase server client and verifies the current user session.
+ * Throws an Error('Unauthorized') if no authenticated user is found.
+ */
+export async function createAuthenticatedClient() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  return { supabase, user };
+}

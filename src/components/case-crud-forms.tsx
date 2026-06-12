@@ -5,8 +5,8 @@ import { Pencil, Trash2, Plus, X } from 'lucide-react'
 import type { CaseLibraryRow } from '@/lib/case-library'
 import type { CaseInput } from '@/lib/case-mutations'
 import { createCaseAction, updateCaseAction, deleteCaseAction } from '@/app/actions/cases'
+import type { ProofLevel } from '@/lib/db/types'
 
-type ProofLevel = 'High' | 'Medium-High' | 'Medium' | 'Low-Medium' | 'Ongoing'
 type PropositionOption = { id: string; number: string; name: string }
 
 const PROOF_LEVELS: ProofLevel[] = ['High', 'Medium-High', 'Medium', 'Low-Medium', 'Ongoing']

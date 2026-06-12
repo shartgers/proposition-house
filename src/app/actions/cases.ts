@@ -1,31 +1,16 @@
 'use server'
 
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
+import { createAuthenticatedClient } from '@/lib/supabase/server'
 import { allocateCase, createCase, updateCase, deleteCase } from '@/lib/case-mutations'
 import type { CaseInput } from '@/lib/case-mutations'
-
-async function getSupabase() {
-  const cookieStore = await cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: (cs) => cs.forEach(({ name, value, options }) => cookieStore.set(name, value, options)),
-      },
-    }
-  )
-}
 
 // Returns the offering's name + practice + proposition so callers can update local state
 export async function allocateCaseAction(
   caseId: string,
   offeringId: string
 ): Promise<{ offeringName: string; practiceName: string | null; propositionName: string }> {
-  const supabase = await getSupabase()
+  const { supabase } = await createAuthenticatedClient()
 
   // Fetch offering metadata before mutating (needed for return value)
   const { data: offering } = await supabase
@@ -53,9 +38,7 @@ export async function allocateCaseAction(
 }
 
 export async function createCaseAction(input: CaseInput): Promise<{ id: string }> {
-  const supabase = await getSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
+  const { supabase } = await createAuthenticatedClient()
 
   const result = await createCase(supabase, input)
   revalidatePath('/cases')
@@ -67,9 +50,7 @@ export async function updateCaseAction(
   id: string,
   input: Partial<Omit<CaseInput, 'propositionId'>>
 ): Promise<void> {
-  const supabase = await getSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
+  const { supabase } = await createAuthenticatedClient()
 
   await updateCase(supabase, id, input)
   revalidatePath('/cases')
@@ -77,9 +58,7 @@ export async function updateCaseAction(
 }
 
 export async function deleteCaseAction(id: string): Promise<void> {
-  const supabase = await getSupabase()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
+  const { supabase } = await createAuthenticatedClient()
 
   await deleteCase(supabase, id)
   revalidatePath('/cases')

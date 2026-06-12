@@ -1,24 +1,9 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import type { OfferingView, PropositionView } from './views'
 
-export type Offering = {
-  id: string
-  name: string
-  practiceId: string | null
-  practice: string
-  practiceOwner: string
-  description: string | null
-  keyOutcomes: string | null
-  caseCount: number
-}
+export type { OfferingView, PropositionView }
 
-export type Proposition = {
-  id: string
-  number: string
-  name: string
-  offerings: Offering[]
-}
-
-export async function fetchDashboardData(supabase: SupabaseClient): Promise<Proposition[]> {
+export async function fetchDashboardData(supabase: SupabaseClient): Promise<PropositionView[]> {
   const { data, error } = await supabase
     .from('propositions')
     .select(`

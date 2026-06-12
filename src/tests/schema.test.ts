@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import { createTestClient } from './helpers/client'
 import { cleanupTestArtifacts } from './helpers/cleanup'
-import { getPropositions } from '@/lib/db/propositions'
-import { getCases } from '@/lib/db/cases'
+import type { CaseRow } from '@/lib/db/types'
 
 // These tests run against a real Supabase test project.
 // Set TEST_SUPABASE_URL and TEST_SUPABASE_SERVICE_ROLE_KEY in .env.test.local.
@@ -27,15 +26,17 @@ describe('schema + seed', () => {
   // RED → GREEN #1: seed produces exactly 5 propositions with correct names
   describe('propositions', () => {
     it('returns exactly 5 propositions', async () => {
-      const propositions = await getPropositions(client)
-      expect(propositions).toHaveLength(5)
+      const { data, error } = await client.from('propositions').select('id, number, name').order('number')
+      if (error) throw error
+      expect(data).toHaveLength(5)
     })
 
     it('has correct numbers and names in order', async () => {
-      const propositions = await getPropositions(client)
+      const { data, error } = await client.from('propositions').select('id, number, name').order('number')
+      if (error) throw error
       EXPECTED_PROPOSITIONS.forEach(({ number, name }, i) => {
-        expect(propositions[i].number).toBe(number)
-        expect(propositions[i].name).toBe(name)
+        expect(data![i].number).toBe(number)
+        expect(data![i].name).toBe(name)
       })
     })
   })
@@ -43,18 +44,21 @@ describe('schema + seed', () => {
   // RED → GREEN #2: seed produces 99 cases, all proposition-linked, all unallocated
   describe('seeded cases', () => {
     it('returns exactly 99 cases', async () => {
-      const cases = await getCases(client)
-      expect(cases).toHaveLength(99)
+      const { data, error } = await client.from('cases').select('*')
+      if (error) throw error
+      expect(data).toHaveLength(99)
     })
 
     it('all cases have proposition_id set', async () => {
-      const cases = await getCases(client)
-      cases.forEach((c) => expect(c.proposition_id).toBeTruthy())
+      const { data, error } = await client.from('cases').select('*')
+      if (error) throw error
+      ;(data as CaseRow[]).forEach((c) => expect(c.proposition_id).toBeTruthy())
     })
 
     it('all cases start unallocated (offering_id is null)', async () => {
-      const cases = await getCases(client)
-      cases.forEach((c) => expect(c.offering_id).toBeNull())
+      const { data, error } = await client.from('cases').select('*')
+      if (error) throw error
+      ;(data as CaseRow[]).forEach((c) => expect(c.offering_id).toBeNull())
     })
   })
 
