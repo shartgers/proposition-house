@@ -1,7 +1,7 @@
 'use client'
 
 import { useDroppable } from '@dnd-kit/core'
-import { Briefcase, Users, Plus, ChevronUp, ChevronDown, Pencil, Trash2, Loader2 } from 'lucide-react'
+import { Briefcase, Plus, ChevronUp, ChevronDown, Pencil, Trash2, Loader2 } from 'lucide-react'
 import type { OfferingView } from '@/lib/views'
 
 const STYLES = {
@@ -114,21 +114,15 @@ function OfferingCard({ offering, s, isActive, isFirst, isLast, movePending, onO
       {/* Card body — clickable for detail */}
       <button
         onClick={() => onOpenOffering(offering.id)}
-        className="w-full text-left p-5 hover:-translate-y-0.5 transition-transform duration-200"
+        className="w-full text-left px-4 py-3 hover:-translate-y-0.5 transition-transform duration-200"
       >
-        <div className="flex items-start justify-between gap-2 mb-4">
-          <p className="font-heading text-sm font-semibold leading-snug">{offering.name}</p>
-          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${s.badge}`}>{offering.caseCount}</span>
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Briefcase className="w-3 h-3 flex-shrink-0" />
+        <div className="flex items-center gap-2">
+          <p className="font-heading text-sm font-semibold leading-none truncate flex-1">{offering.name}</p>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-shrink-0">
+            <Briefcase className="w-3 h-3" />
             <span>{offering.practice}</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Users className="w-3 h-3 flex-shrink-0" />
-            <span>{offering.practiceOwner}</span>
-          </div>
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${s.badge}`}>{offering.caseCount}</span>
         </div>
       </button>
 
