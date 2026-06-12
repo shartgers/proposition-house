@@ -1,6 +1,7 @@
 'use client'
 
-import { ChevronUp, ChevronDown, Layers } from 'lucide-react'
+import { useDraggable } from '@dnd-kit/core'
+import { ChevronUp, ChevronDown, Layers, GripVertical } from 'lucide-react'
 import type { CaseDetail, ProofLevel } from '@/lib/offering-data'
 
 const PROOF_COLOURS: Record<ProofLevel, string> = {
@@ -94,10 +95,23 @@ function FilterChip({ label, title, active, onClick }: { label: string; title?: 
 }
 
 export function CaseTrayItem({ c }: { c: CaseDetail }) {
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: c.id,
+    data: { type: 'case', source: 'tray' },
+  })
+
   return (
-    <div className="rounded-lg border border-border bg-background px-3 py-2 select-none">
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`rounded-lg border border-border bg-background px-3 py-2 select-none cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-40' : ''}`}
+    >
       <div className="flex items-center gap-2 justify-between">
-        <span className="font-heading text-xs font-semibold truncate">{c.clientName}</span>
+        <span className="flex items-center gap-1 min-w-0">
+          <GripVertical className="w-3 h-3 flex-shrink-0 text-muted-foreground/50" />
+          <span className="font-heading text-xs font-semibold truncate">{c.clientName}</span>
+        </span>
         <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${PROOF_COLOURS[c.proofLevel]}`}>
           {c.proofLevel}
         </span>
