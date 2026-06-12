@@ -3,7 +3,8 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { allocateCase } from '@/lib/case-mutations'
+import { allocateCase, createCase, updateCase, deleteCase } from '@/lib/case-mutations'
+import type { CaseInput } from '@/lib/case-mutations'
 
 async function getSupabase() {
   const cookieStore = await cookies()
@@ -49,4 +50,38 @@ export async function allocateCaseAction(
     practiceName: (o?.practices as { name: string } | null)?.name ?? null,
     propositionName: (o?.propositions as { name: string } | null)?.name ?? '',
   }
+}
+
+export async function createCaseAction(input: CaseInput): Promise<{ id: string }> {
+  const supabase = await getSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const result = await createCase(supabase, input)
+  revalidatePath('/cases')
+  revalidatePath('/')
+  return result
+}
+
+export async function updateCaseAction(
+  id: string,
+  input: Partial<Omit<CaseInput, 'propositionId'>>
+): Promise<void> {
+  const supabase = await getSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  await updateCase(supabase, id, input)
+  revalidatePath('/cases')
+  revalidatePath('/')
+}
+
+export async function deleteCaseAction(id: string): Promise<void> {
+  const supabase = await getSupabase()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  await deleteCase(supabase, id)
+  revalidatePath('/cases')
+  revalidatePath('/')
 }
