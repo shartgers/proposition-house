@@ -82,6 +82,21 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
     }
   }
 
+  // Re-allocate a Case dragged from the detail pane directly onto a different
+  // Offering card. The unallocated pool is never involved.
+  async function reallocateBetweenOfferings(caseId: string, sourceOfferingId: string, targetOfferingId: string) {
+    const { next, rollback } = applyOptimisticCaseCountUpdate(localOfferingsMap, { targetOfferingId, sourceOfferingId, delta: 1 })
+    setLocalOfferingsMap(next)
+    setAllocError(null)
+    try {
+      await allocateCaseAction(caseId, targetOfferingId)
+      setDetailRefreshKey((k) => k + 1)
+    } catch {
+      setLocalOfferingsMap(rollback)
+      setAllocError('Failed to re-allocate case. Please try again.')
+    }
+  }
+
   // Send a Case in the open detail pane back to the unallocated pool via the × button.
   async function handleUnallocateCase(c: CaseDetail) {
     const sourceOfferingId = activeOfferingId
@@ -104,7 +119,7 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over) return
-    const activeData = active.data.current as { type?: string; source?: string } | undefined
+    const activeData = active.data.current as { type?: string; source?: string; sourceOfferingId?: string } | undefined
     const overData = over.data.current as { type?: string; offeringId?: string } | undefined
     if (activeData?.type !== 'case') return
 
@@ -117,6 +132,12 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
     // tray → open Offering detail pane
     if (activeData.source === 'tray' && overData?.type === 'detail-pane' && overData.offeringId) {
       allocateFromTray(caseId, overData.offeringId, true)
+      return
+    }
+    // detail pane → a different Offering card (re-allocation); same-Offering drop is a no-op
+    if (activeData.source === 'detail-pane' && overData?.type === 'offering' && overData.offeringId
+        && activeData.sourceOfferingId && overData.offeringId !== activeData.sourceOfferingId) {
+      reallocateBetweenOfferings(caseId, activeData.sourceOfferingId, overData.offeringId)
       return
     }
   }

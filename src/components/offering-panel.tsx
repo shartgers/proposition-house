@@ -1,7 +1,7 @@
 'use client'
 
-import { useDroppable } from '@dnd-kit/core'
-import { X, Briefcase, Users, ChevronDown, ChevronUp } from 'lucide-react'
+import { useDroppable, useDraggable } from '@dnd-kit/core'
+import { X, Briefcase, Users, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import { useState } from 'react'
 import type { OfferingDetail, CaseDetail, ProofLevel } from '@/lib/offering-data'
 
@@ -13,28 +13,45 @@ const PROOF_COLOURS: Record<ProofLevel, string> = {
   Ongoing: 'bg-slate-100 text-slate-600',
 }
 
-function CaseRow({ c, onUnallocate }: { c: CaseDetail; onUnallocate: (c: CaseDetail) => void }) {
+function CaseRow({ c, sourceOfferingId, onUnallocate }: { c: CaseDetail; sourceOfferingId: string; onUnallocate: (c: CaseDetail) => void }) {
   const [open, setOpen] = useState(false)
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: c.id,
+    data: { type: 'case', source: 'detail-pane', sourceOfferingId },
+  })
   return (
-    <div className="group/case relative rounded-xl border border-border bg-background overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/50 transition-colors"
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-heading text-sm font-semibold">{c.clientName}</span>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PROOF_COLOURS[c.proofLevel]}`}>
-              {c.proofLevel}
-            </span>
+    <div
+      ref={setNodeRef}
+      className={`group/case relative rounded-xl border border-border bg-background overflow-hidden ${isDragging ? 'opacity-40' : ''}`}
+    >
+      <div className="flex items-stretch">
+        <span
+          {...listeners}
+          {...attributes}
+          title="Drag to re-allocate"
+          className="flex items-center px-1.5 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </span>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 text-left pr-4 py-3 flex items-center gap-3 hover:bg-accent/50 transition-colors"
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-heading text-sm font-semibold">{c.clientName}</span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PROOF_COLOURS[c.proofLevel]}`}>
+                {c.proofLevel}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{c.sector} · {c.dateRange}</p>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{c.sector} · {c.dateRange}</p>
-        </div>
-        {open
-          ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-          : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-        }
-      </button>
+          {open
+            ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+            : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+          }
+        </button>
+      </div>
       <button
         onClick={(e) => { e.stopPropagation(); onUnallocate(c) }}
         title="Unallocate case"
@@ -149,7 +166,7 @@ export function OfferingPanel({
               </p>
             ) : (
               <div className="space-y-2">
-                {offering.cases.map((c) => <CaseRow key={c.id} c={c} onUnallocate={onUnallocateCase} />)}
+                {offering.cases.map((c) => <CaseRow key={c.id} c={c} sourceOfferingId={offering.id} onUnallocate={onUnallocateCase} />)}
               </div>
             )}
           </section>
