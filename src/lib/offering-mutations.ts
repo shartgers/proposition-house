@@ -49,6 +49,7 @@ export async function updateOffering(
   if (input.description !== undefined) patch.description = input.description
   if (input.keyOutcomes !== undefined) patch.key_outcomes = input.keyOutcomes
   if (input.practiceId !== undefined) patch.practice_id = input.practiceId
+  if (input.propositionId !== undefined) patch.proposition_id = input.propositionId
 
   const { error } = await supabase.from('offerings').update(patch).eq('id', id)
   if (error) throw error
