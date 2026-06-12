@@ -11,6 +11,7 @@ export type CaseDetail = {
   proofLevel: ProofLevel
   description: string
   result: string
+  propositionId: string
 }
 
 export type OfferingDetail = {
@@ -39,6 +40,41 @@ export function sortCasesByProofLevel(cases: CaseDetail[]): CaseDetail[] {
   return [...cases].sort((a, b) => PROOF_ORDER[a.proofLevel] - PROOF_ORDER[b.proofLevel])
 }
 
+const CASE_COLUMNS = 'id, client_name, sector, date_range, proof_level, description, result, proposition_id'
+
+function mapCaseRow(c: {
+  id: string; client_name: string; sector: string; date_range: string
+  proof_level: string; description: string; result: string; proposition_id: string
+}): CaseDetail {
+  return {
+    id: c.id,
+    clientName: c.client_name,
+    sector: c.sector,
+    dateRange: c.date_range,
+    proofLevel: c.proof_level as ProofLevel,
+    description: c.description,
+    result: c.result,
+    propositionId: c.proposition_id,
+  }
+}
+
+/**
+ * Fetches every Case in the unallocated pool (offering_id IS NULL) across all
+ * Propositions, sorted by Proof level (High → Ongoing). Proposition filtering
+ * is left to the client so switching the Case Tray filter is instant.
+ */
+export async function fetchAllUnallocatedCases(
+  supabase: SupabaseClient
+): Promise<CaseDetail[]> {
+  const { data, error } = await supabase
+    .from('cases')
+    .select(CASE_COLUMNS)
+    .is('offering_id', null)
+
+  if (error) throw error
+  return sortCasesByProofLevel((data ?? []).map(mapCaseRow))
+}
+
 export async function fetchOfferingDetail(
   supabase: SupabaseClient,
   id: string
@@ -63,27 +99,14 @@ export async function fetchOfferingDetail(
   const [{ data: casesData }, { data: unallocatedData }] = await Promise.all([
     supabase
       .from('cases')
-      .select('id, client_name, sector, date_range, proof_level, description, result')
+      .select(CASE_COLUMNS)
       .eq('offering_id', id),
     supabase
       .from('cases')
-      .select('id, client_name, sector, date_range, proof_level, description, result')
+      .select(CASE_COLUMNS)
       .eq('proposition_id', data.proposition_id)
       .is('offering_id', null),
   ])
-
-  const mapCase = (c: {
-    id: string; client_name: string; sector: string; date_range: string
-    proof_level: string; description: string; result: string
-  }): CaseDetail => ({
-    id: c.id,
-    clientName: c.client_name,
-    sector: c.sector,
-    dateRange: c.date_range,
-    proofLevel: c.proof_level as ProofLevel,
-    description: c.description,
-    result: c.result,
-  })
 
   return {
     id: data.id,
@@ -93,9 +116,9 @@ export async function fetchOfferingDetail(
     practice: (data.practices as unknown as { name: string } | null)?.name ?? '',
     practiceOwner: (data.practices as unknown as { practice_owner: string } | null)?.practice_owner ?? '',
     caseCount: (data.cases as { count: number }[])?.[0]?.count ?? 0,
-    cases: sortCasesByProofLevel((casesData ?? []).map(mapCase)),
+    cases: sortCasesByProofLevel((casesData ?? []).map(mapCaseRow)),
     propositionId: data.proposition_id,
     propositionName: (data.propositions as unknown as { name: string } | null)?.name ?? '',
-    unallocatedCases: sortCasesByProofLevel((unallocatedData ?? []).map(mapCase)),
+    unallocatedCases: sortCasesByProofLevel((unallocatedData ?? []).map(mapCaseRow)),
   }
 }

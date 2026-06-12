@@ -1,6 +1,7 @@
 'use client'
 
-import { X, Briefcase, Users, ChevronDown, ChevronUp } from 'lucide-react'
+import { useDroppable, useDraggable } from '@dnd-kit/core'
+import { X, Briefcase, Users, ChevronDown, ChevronUp, GripVertical } from 'lucide-react'
 import { useState } from 'react'
 import type { OfferingDetail, CaseDetail, ProofLevel } from '@/lib/offering-data'
 
@@ -12,27 +13,51 @@ const PROOF_COLOURS: Record<ProofLevel, string> = {
   Ongoing: 'bg-slate-100 text-slate-600',
 }
 
-function CaseRow({ c }: { c: CaseDetail }) {
+function CaseRow({ c, sourceOfferingId, onUnallocate }: { c: CaseDetail; sourceOfferingId: string; onUnallocate: (c: CaseDetail) => void }) {
   const [open, setOpen] = useState(false)
+  const { setNodeRef, listeners, attributes, isDragging } = useDraggable({
+    id: c.id,
+    data: { type: 'case', source: 'detail-pane', sourceOfferingId },
+  })
   return (
-    <div className="rounded-xl border border-border bg-background overflow-hidden">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-accent/50 transition-colors"
-      >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-heading text-sm font-semibold">{c.clientName}</span>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PROOF_COLOURS[c.proofLevel]}`}>
-              {c.proofLevel}
-            </span>
+    <div
+      ref={setNodeRef}
+      className={`group/case relative rounded-xl border border-border bg-background overflow-hidden ${isDragging ? 'opacity-40' : ''}`}
+    >
+      <div className="flex items-stretch">
+        <span
+          {...listeners}
+          {...attributes}
+          title="Drag to re-allocate"
+          className="flex items-center px-1.5 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </span>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 text-left pr-4 py-3 flex items-center gap-3 hover:bg-accent/50 transition-colors"
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-heading text-sm font-semibold">{c.clientName}</span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PROOF_COLOURS[c.proofLevel]}`}>
+                {c.proofLevel}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{c.sector} · {c.dateRange}</p>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">{c.sector} · {c.dateRange}</p>
-        </div>
-        {open
-          ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-          : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-        }
+          {open
+            ? <ChevronUp className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+            : <ChevronDown className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+          }
+        </button>
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onUnallocate(c) }}
+        title="Unallocate case"
+        className="absolute top-2 right-9 hidden group-hover/case:flex w-6 h-6 items-center justify-center rounded text-muted-foreground hover:text-rose-600 hover:bg-rose-50 transition-colors"
+      >
+        <X className="w-3.5 h-3.5" />
       </button>
       {open && (
         <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
@@ -53,11 +78,18 @@ export function OfferingPanel({
   offering,
   loading,
   onClose,
+  onUnallocateCase,
 }: {
   offering: OfferingDetail | null
   loading: boolean
   onClose: () => void
+  onUnallocateCase: (c: CaseDetail) => void
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'detail-pane',
+    data: { type: 'detail-pane', offeringId: offering?.id },
+  })
+
   return (
     <div className="h-full flex flex-col">
       {/* Panel header */}
@@ -121,15 +153,20 @@ export function OfferingPanel({
             </section>
           )}
 
-          <section>
+          <section
+            ref={setNodeRef}
+            className={`rounded-xl transition-colors ${isOver ? 'bg-accent/60 ring-2 ring-primary/40 -m-2 p-2' : ''}`}
+          >
             <h3 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
               Cases {offering.caseCount > 0 && `· ${offering.caseCount}`}
             </h3>
             {offering.cases.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No cases linked to this offering yet.</p>
+              <p className="text-sm text-muted-foreground">
+                {isOver ? 'Drop to allocate this case' : 'No cases linked to this offering yet. Drag a case here to allocate it.'}
+              </p>
             ) : (
               <div className="space-y-2">
-                {offering.cases.map((c) => <CaseRow key={c.id} c={c} />)}
+                {offering.cases.map((c) => <CaseRow key={c.id} c={c} sourceOfferingId={offering.id} onUnallocate={onUnallocateCase} />)}
               </div>
             )}
           </section>

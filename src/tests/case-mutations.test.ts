@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { allocateCase } from '@/lib/case-mutations'
+import { allocateCase, unallocateCase } from '@/lib/case-mutations'
 
 // Tests run against the real Supabase project.
 // Seed must be applied: all 99 cases unallocated, propositions 01–05 present.
@@ -136,5 +136,32 @@ describe('allocateCase', () => {
     await expect(
       allocateCase(supabase, testCaseId, '00000000-0000-0000-0000-000000000000')
     ).rejects.toThrow()
+  })
+})
+
+describe('unallocateCase', () => {
+  it('sets offering_id back to null', async () => {
+    await allocateCase(supabase, testCaseId, offering02Id)
+    await unallocateCase(supabase, testCaseId)
+
+    const { data } = await supabase
+      .from('cases')
+      .select('offering_id')
+      .eq('id', testCaseId)
+      .single()
+    expect(data!.offering_id).toBeNull()
+  })
+
+  it('leaves proposition_id unchanged (keeps the allocated proposition)', async () => {
+    // Allocate to an offering in proposition 02 → case proposition becomes 02
+    await allocateCase(supabase, testCaseId, offering02Id)
+    await unallocateCase(supabase, testCaseId)
+
+    const { data } = await supabase
+      .from('cases')
+      .select('proposition_id')
+      .eq('id', testCaseId)
+      .single()
+    expect(data!.proposition_id).toBe(prop02Id)
   })
 })
