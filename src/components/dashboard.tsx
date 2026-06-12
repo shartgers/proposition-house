@@ -37,14 +37,17 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
   const [allocError, setAllocError] = useState<string | null>(null)
   const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
   // Lazy-fetch the unallocated pool on first tray open (not at page load)
-  useEffect(() => {
-    if (!trayOpen || unallocatedCases !== null || trayLoading) return
-    setTrayLoading(true)
-    fetchAllUnallocatedCases(supabase).then((cases) => {
-      setUnallocatedCases(cases)
-      setTrayLoading(false)
-    })
-  }, [trayOpen, unallocatedCases, trayLoading, supabase])
+  function handleTrayToggle() {
+    const opening = !trayOpen
+    setTrayOpen(opening)
+    if (opening && unallocatedCases === null && !trayLoading) {
+      setTrayLoading(true)
+      fetchAllUnallocatedCases(supabase).then((cases) => {
+        setUnallocatedCases(cases)
+        setTrayLoading(false)
+      })
+    }
+  }
   const localOfferings = localOfferingsMap[selectedId] ?? selected.offerings
   const propList = propositions.map((p) => ({ id: p.id, number: p.number, name: p.name }))
   function handleMove(offeringId: string, direction: 'up' | 'down') {
@@ -154,7 +157,7 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
               onOpenOffering={(id) => { setShowAddForm(false); setEditingId(null); setActiveOfferingId(activeOfferingId === id ? null : id) }}
               onMove={handleMove} onEdit={(id) => { setEditingId(id); setActiveOfferingId(null) }}
               onDelete={setDeletingId} onAddOffering={() => { setShowAddForm(true); setEditingId(null); setActiveOfferingId(null) }} />
-            <CaseTray open={trayOpen} onToggle={() => setTrayOpen((v) => !v)}
+            <CaseTray open={trayOpen} onToggle={handleTrayToggle}
               cases={unallocatedCases} loading={trayLoading} propositions={propList}
               filter={trayPropositionFilter} onFilterChange={setTrayPropositionFilter} />
           </div>
