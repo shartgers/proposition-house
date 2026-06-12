@@ -44,6 +44,25 @@ describe('updateOffering', () => {
     const { data } = await supabase.from('offerings').select('name').eq('id', id).single()
     expect(data?.name).toBe('After')
   })
+
+  it('moves the offering to a different proposition', async () => {
+    const { id } = await createOffering(supabase, { name: 'Prop-move test', propositionId: PROP_ID })
+    createdIds.push(id)
+
+    // Pick any proposition that isn't PROP_ID
+    const { data: propositions } = await supabase
+      .from('propositions')
+      .select('id')
+      .neq('id', PROP_ID)
+      .limit(1)
+      .single()
+    const otherPropId = propositions!.id
+
+    await updateOffering(supabase, id, { propositionId: otherPropId })
+
+    const { data } = await supabase.from('offerings').select('proposition_id').eq('id', id).single()
+    expect(data?.proposition_id).toBe(otherPropId)
+  })
 })
 
 describe('moveOffering', () => {
