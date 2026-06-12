@@ -1,5 +1,18 @@
 export type ProofLevel = 'High' | 'Medium-High' | 'Medium' | 'Low-Medium' | 'Ongoing'
 
+export type PracticeUnit =
+  | 'Strategy & Delivery'
+  | 'AI Solutions'
+  | 'Analytics & Data Engineering'
+  | 'Data Platform Engineering'
+
+export const PRACTICE_UNITS: PracticeUnit[] = [
+  'Strategy & Delivery',
+  'AI Solutions',
+  'Analytics & Data Engineering',
+  'Data Platform Engineering',
+]
+
 export type Proposition = {
   id: string
   number: string

@@ -6,6 +6,7 @@ import {
   updatePractice,
   deletePractice,
 } from '@/lib/practice-mutations'
+import type { PracticeUnit } from '@/lib/db/types'
 
 const supabase: SupabaseClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -111,6 +112,87 @@ describe('updatePractice', () => {
       .single()
     expect(data?.name).toBe('New Name')
     expect(data?.practice_owner).toBe('New Owner')
+  })
+})
+
+// ─── unit field ───────────────────────────────────────────────────────────────
+
+describe('createPractice — unit field', () => {
+  it('stores the unit when provided', async () => {
+    const { id } = await createPractice(supabase, {
+      name: '__Unit Practice',
+      practiceOwner: 'Owner',
+      unit: 'AI Solutions',
+    })
+    createdPracticeIds.push(id)
+
+    const { data } = await supabase.from('practices').select('unit').eq('id', id).single()
+    expect(data?.unit).toBe('AI Solutions')
+  })
+
+  it('defaults unit to null when omitted', async () => {
+    const { id } = await createPractice(supabase, {
+      name: '__No Unit Practice',
+      practiceOwner: 'Owner',
+    })
+    createdPracticeIds.push(id)
+
+    const { data } = await supabase.from('practices').select('unit').eq('id', id).single()
+    expect(data?.unit).toBeNull()
+  })
+})
+
+describe('updatePractice — unit field', () => {
+  it('sets the unit on an existing practice', async () => {
+    const { id } = await createPractice(supabase, { name: '__Set Unit', practiceOwner: 'Owner' })
+    createdPracticeIds.push(id)
+
+    await updatePractice(supabase, id, { unit: 'Data Platform Engineering' })
+
+    const { data } = await supabase.from('practices').select('unit').eq('id', id).single()
+    expect(data?.unit).toBe('Data Platform Engineering')
+  })
+
+  it('clears the unit when set to null', async () => {
+    const { id } = await createPractice(supabase, {
+      name: '__Clear Unit',
+      practiceOwner: 'Owner',
+      unit: 'AI Solutions',
+    })
+    createdPracticeIds.push(id)
+
+    await updatePractice(supabase, id, { unit: null })
+
+    const { data } = await supabase.from('practices').select('unit').eq('id', id).single()
+    expect(data?.unit).toBeNull()
+  })
+})
+
+describe('getPractices — unit field', () => {
+  it('returns the unit field for each practice', async () => {
+    const { id } = await createPractice(supabase, {
+      name: '__Unit Visible',
+      practiceOwner: 'Owner',
+      unit: 'Analytics & Data Engineering',
+    })
+    createdPracticeIds.push(id)
+
+    const practices = await getPractices(supabase)
+    const found = practices.find((p) => p.id === id)
+    expect(found).toBeDefined()
+    expect(found?.unit).toBe('Analytics & Data Engineering' satisfies PracticeUnit)
+  })
+
+  it('returns null unit for practices without one', async () => {
+    const { id } = await createPractice(supabase, {
+      name: '__Null Unit',
+      practiceOwner: 'Owner',
+    })
+    createdPracticeIds.push(id)
+
+    const practices = await getPractices(supabase)
+    const found = practices.find((p) => p.id === id)
+    expect(found?.unit).toBeNull()
   })
 })
 

@@ -1,23 +1,33 @@
 import { SupabaseClient } from '@supabase/supabase-js'
+import type { PracticeUnit } from '@/lib/db/types'
+
+export type { PracticeUnit }
 
 export type PracticeInput = {
   name: string
   practiceOwner: string
+  unit?: PracticeUnit | null
 }
 
 export type Practice = {
   id: string
   name: string
   practiceOwner: string
+  unit: PracticeUnit | null
 }
 
 export async function getPractices(supabase: SupabaseClient): Promise<Practice[]> {
   const { data, error } = await supabase
     .from('practices')
-    .select('id, name, practice_owner')
+    .select('id, name, practice_owner, unit')
     .order('name')
   if (error) throw error
-  return (data ?? []).map((p) => ({ id: p.id, name: p.name, practiceOwner: p.practice_owner }))
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    practiceOwner: p.practice_owner,
+    unit: (p.unit as PracticeUnit | null) ?? null,
+  }))
 }
 
 export async function createPractice(
@@ -26,7 +36,11 @@ export async function createPractice(
 ): Promise<{ id: string }> {
   const { data, error } = await supabase
     .from('practices')
-    .insert({ name: input.name, practice_owner: input.practiceOwner })
+    .insert({
+      name: input.name,
+      practice_owner: input.practiceOwner,
+      unit: input.unit ?? null,
+    })
     .select('id')
     .single()
   if (error) throw error
@@ -41,6 +55,7 @@ export async function updatePractice(
   const patch: Record<string, unknown> = {}
   if (input.name !== undefined) patch.name = input.name
   if (input.practiceOwner !== undefined) patch.practice_owner = input.practiceOwner
+  if (input.unit !== undefined) patch.unit = input.unit
 
   const { error } = await supabase.from('practices').update(patch).eq('id', id)
   if (error) throw error
