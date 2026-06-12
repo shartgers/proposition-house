@@ -21,6 +21,9 @@ export type OfferingDetail = {
   practiceOwner: string
   caseCount: number
   cases: CaseDetail[]
+  propositionId: string
+  propositionName: string
+  unallocatedCases: CaseDetail[]
 }
 
 const PROOF_ORDER: Record<ProofLevel, number> = {
@@ -46,6 +49,8 @@ export async function fetchOfferingDetail(
       name,
       description,
       key_outcomes,
+      proposition_id,
+      propositions ( name ),
       practices ( name, practice_owner ),
       cases ( count )
     `)
@@ -54,22 +59,30 @@ export async function fetchOfferingDetail(
 
   if (error || !data) return null
 
-  const { data: casesData } = await supabase
-    .from('cases')
-    .select('id, client_name, sector, date_range, proof_level, description, result')
-    .eq('offering_id', id)
+  const [{ data: casesData }, { data: unallocatedData }] = await Promise.all([
+    supabase
+      .from('cases')
+      .select('id, client_name, sector, date_range, proof_level, description, result')
+      .eq('offering_id', id),
+    supabase
+      .from('cases')
+      .select('id, client_name, sector, date_range, proof_level, description, result')
+      .eq('proposition_id', data.proposition_id)
+      .is('offering_id', null),
+  ])
 
-  const cases = sortCasesByProofLevel(
-    (casesData ?? []).map((c) => ({
-      id: c.id,
-      clientName: c.client_name,
-      sector: c.sector,
-      dateRange: c.date_range,
-      proofLevel: c.proof_level as ProofLevel,
-      description: c.description,
-      result: c.result,
-    }))
-  )
+  const mapCase = (c: {
+    id: string; client_name: string; sector: string; date_range: string
+    proof_level: string; description: string; result: string
+  }): CaseDetail => ({
+    id: c.id,
+    clientName: c.client_name,
+    sector: c.sector,
+    dateRange: c.date_range,
+    proofLevel: c.proof_level as ProofLevel,
+    description: c.description,
+    result: c.result,
+  })
 
   return {
     id: data.id,
@@ -79,6 +92,9 @@ export async function fetchOfferingDetail(
     practice: (data.practices as unknown as { name: string } | null)?.name ?? '',
     practiceOwner: (data.practices as unknown as { practice_owner: string } | null)?.practice_owner ?? '',
     caseCount: (data.cases as { count: number }[])?.[0]?.count ?? 0,
-    cases,
+    cases: sortCasesByProofLevel((casesData ?? []).map(mapCase)),
+    propositionId: data.proposition_id,
+    propositionName: (data.propositions as unknown as { name: string } | null)?.name ?? '',
+    unallocatedCases: sortCasesByProofLevel((unallocatedData ?? []).map(mapCase)),
   }
 }

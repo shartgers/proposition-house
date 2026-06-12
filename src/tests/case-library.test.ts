@@ -1,6 +1,7 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach } from 'vitest'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { fetchCaseLibrary, countUnallocatedCases } from '@/lib/case-library'
+import { cleanupTestArtifacts } from './helpers/cleanup'
 
 // Tests run against the real Supabase project (same DB as dev).
 // Seed must be applied: all 99 cases unallocated, 5 propositions, 24 offerings.
@@ -13,6 +14,10 @@ const supabase: SupabaseClient = createClient(
 // Proposition 01 id — looked up once, used across filter tests
 let prop01Id: string
 let prop01CaseCount: number
+
+beforeAll(async () => {
+  await cleanupTestArtifacts(supabase)
+})
 
 // Teardown for any test data created mid-suite
 const createdPracticeIds: string[] = []

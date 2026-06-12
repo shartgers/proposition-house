@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import type { CaseLibraryRow } from '@/lib/case-library'
+import { allocateCaseAction } from '@/app/actions/cases'
 
 type PropositionOption = { id: string; number: string; name: string; offerings: { id: string; name: string }[] }
 type PracticeOption = { id: string; name: string }
@@ -45,8 +47,34 @@ function FilterSelect({
   )
 }
 
-function CaseRow({ row }: { row: CaseLibraryRow }) {
+function CaseRow({
+  row,
+  propositions,
+  onAllocated,
+}: {
+  row: CaseLibraryRow
+  propositions: PropositionOption[]
+  onAllocated: (caseId: string, offeringName: string, practiceName: string | null, propositionName: string) => void
+}) {
   const [open, setOpen] = useState(false)
+  const [selectedOfferingId, setSelectedOfferingId] = useState('')
+  const [pending, startTransition] = useTransition()
+
+  // All offerings flattened, grouped by proposition for <optgroup>
+  const flatOfferings = propositions.flatMap((p) =>
+    p.offerings.map((o) => ({ ...o, propNumber: p.number, propName: p.name, propId: p.id }))
+  )
+
+  function handleAssign() {
+    if (!selectedOfferingId) return
+    startTransition(async () => {
+      const result = await allocateCaseAction(row.id, selectedOfferingId)
+      onAllocated(row.id, result.offeringName, result.practiceName, result.propositionName)
+      setOpen(false)
+      setSelectedOfferingId('')
+    })
+  }
+
   return (
     <div className="rounded-xl border border-border bg-card shadow-soft overflow-hidden">
       <button
@@ -78,7 +106,7 @@ function CaseRow({ row }: { row: CaseLibraryRow }) {
       </button>
 
       {open && (
-        <div className="px-5 pb-5 pt-4 space-y-3 border-t border-border">
+        <div className="px-5 pb-5 pt-4 space-y-4 border-t border-border">
           <p className="text-sm leading-relaxed">{row.description}</p>
           {row.result && (
             <div className="bg-accent rounded-lg px-4 py-3">
@@ -86,6 +114,36 @@ function CaseRow({ row }: { row: CaseLibraryRow }) {
               <p className="text-sm leading-relaxed">{row.result}</p>
             </div>
           )}
+
+          {/* Assign to offering */}
+          <div className="pt-1 border-t border-border space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              {row.offeringName ? 'Reassign to offering' : 'Assign to offering'}
+            </p>
+            <div className="flex gap-2">
+              <select
+                value={selectedOfferingId}
+                onChange={(e) => setSelectedOfferingId(e.target.value)}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              >
+                <option value="">Select offering…</option>
+                {propositions.map((p) => (
+                  <optgroup key={p.id} label={`${p.number} · ${p.name}`}>
+                    {p.offerings.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <button
+                onClick={handleAssign}
+                disabled={!selectedOfferingId || pending}
+                className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+              >
+                {pending ? '…' : 'Save'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -93,11 +151,11 @@ function CaseRow({ row }: { row: CaseLibraryRow }) {
 }
 
 export function CaseLibraryView({
-  cases,
+  cases: initialCases,
   propositions,
   practices,
   sectors,
-  unallocatedCount,
+  unallocatedCount: initialUnallocatedCount,
 }: {
   cases: CaseLibraryRow[]
   propositions: PropositionOption[]
@@ -105,6 +163,10 @@ export function CaseLibraryView({
   sectors: string[]
   unallocatedCount: number
 }) {
+  const router = useRouter()
+  const [cases, setCases] = useState(initialCases)
+  const [unallocatedCount, setUnallocatedCount] = useState(initialUnallocatedCount)
+
   const [propositionId, setPropositionId] = useState('')
   const [offeringId, setOfferingId] = useState('')
   const [proofLevel, setProofLevel] = useState('')
@@ -116,7 +178,7 @@ export function CaseLibraryView({
 
   function handlePropositionChange(id: string) {
     setPropositionId(id)
-    setOfferingId('') // reset dependent filter
+    setOfferingId('')
   }
 
   function clearFilters() {
@@ -127,9 +189,25 @@ export function CaseLibraryView({
     setPracticeId('')
   }
 
+  function handleAllocated(
+    caseId: string,
+    offeringName: string,
+    practiceName: string | null,
+    propositionName: string
+  ) {
+    const wasUnallocated = cases.find((c) => c.id === caseId)?.offeringName === null
+    setCases((prev) =>
+      prev.map((c) =>
+        c.id === caseId ? { ...c, offeringName, practiceName, propositionName } : c
+      )
+    )
+    if (wasUnallocated) setUnallocatedCount((n) => n - 1)
+    // Sync server state in the background so page data stays fresh on next visit
+    router.refresh()
+  }
+
   const hasFilters = propositionId || offeringId || proofLevel || sector || practiceId
 
-  // Client-side filter
   const filtered = cases.filter((c) => {
     if (propositionId && c.propositionName !== selectedProp?.name) return false
     if (offeringId === '__unallocated') { if (c.offeringName !== null) return false }
@@ -225,7 +303,14 @@ export function CaseLibraryView({
         <p className="text-sm text-muted-foreground py-4">No cases match the current filters.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((c) => <CaseRow key={c.id} row={c} />)}
+          {filtered.map((c) => (
+            <CaseRow
+              key={c.id}
+              row={c}
+              propositions={propositions}
+              onAllocated={handleAllocated}
+            />
+          ))}
         </div>
       )}
     </div>

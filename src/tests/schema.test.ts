@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createTestClient } from './helpers/client'
+import { cleanupTestArtifacts } from './helpers/cleanup'
 import { getPropositions } from '@/lib/db/propositions'
 import { getCases } from '@/lib/db/cases'
 
@@ -18,6 +19,10 @@ const EXPECTED_PROPOSITIONS = [
 
 describe('schema + seed', () => {
   const client = createTestClient()
+
+  beforeAll(async () => {
+    await cleanupTestArtifacts(client)
+  })
 
   // RED → GREEN #1: seed produces exactly 5 propositions with correct names
   describe('propositions', () => {

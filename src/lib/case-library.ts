@@ -84,8 +84,8 @@ async function _queryCases(
   if (error) throw error
 
   return (data ?? []).map((row) => {
-    const offering = row.offerings as { name: string; practices: { name: string } | null } | null
-    const proposition = row.propositions as { name: string } | null
+    const offering = row.offerings as unknown as { name: string; practices: { name: string } | null } | null
+    const proposition = row.propositions as unknown as { name: string } | null
     return {
       id: row.id,
       clientName: row.client_name,
