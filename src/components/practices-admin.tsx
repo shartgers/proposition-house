@@ -245,9 +245,12 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [activePractice, setActivePractice] = useState<Practice | null>(null)
 
+  const [dragError, setDragError] = useState<string | null>(null)
+
   const [addPending, startAddTransition] = useTransition()
   const [editPending, startEditTransition] = useTransition()
   const [deletePending, startDeleteTransition] = useTransition()
+  const [, startDragTransition] = useTransition()
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
@@ -322,10 +325,20 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
     if (currentUnit === targetUnit) return
 
     // Optimistic update
+    const previousPractices = practices
     setPractices((prev) => prev.map((p) => (p.id === practiceId ? { ...p, unit: targetUnit } : p)))
+    setDragError(null)
 
-    // Persist (fire and forget)
-    updatePracticeAction(practiceId, { unit: targetUnit })
+    // Persist — awaited inside a transition so concurrent features stay consistent
+    startDragTransition(async () => {
+      try {
+        await updatePracticeAction(practiceId, { unit: targetUnit })
+      } catch {
+        // Roll back the optimistic update and surface the error
+        setPractices(previousPractices)
+        setDragError('Failed to move practice. Please try again.')
+      }
+    })
   }
 
   // ── Group by unit ────────────────────────────────────────────────────────────
@@ -373,6 +386,13 @@ export function PracticesAdmin({ initial }: { initial: Practice[] }) {
               submitLabel="Add practice"
               loading={addPending}
             />
+          </div>
+        )}
+
+        {/* Drag error banner */}
+        {dragError && (
+          <div className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2.5">
+            <p className="text-sm text-rose-700">{dragError}</p>
           </div>
         )}
 
