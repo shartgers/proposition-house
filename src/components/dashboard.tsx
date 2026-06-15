@@ -5,7 +5,7 @@ import type { PropositionView, OfferingView } from '@/lib/views'
 import type { CaseDetail } from '@/lib/offering-data'
 import { fetchAllUnallocatedCases } from '@/lib/offering-data'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
-import { applyOptimisticSwap, applyOptimisticCaseCountUpdate, removeCaseFromUnallocated, addCaseToUnallocated } from '@/lib/dashboard-logic'
+import { applyOptimisticMove, applyOptimisticCaseCountUpdate, removeCaseFromUnallocated, addCaseToUnallocated } from '@/lib/dashboard-logic'
 import { createOfferingAction, updateOfferingAction, deleteOfferingAction, moveOfferingAction } from '@/app/actions/offerings'
 import { allocateCaseAction, unallocateCaseAction } from '@/app/actions/cases'
 import { DashboardHeader } from '@/components/dashboard-header'
@@ -52,7 +52,7 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
   const propList = propositions.map((p) => ({ id: p.id, number: p.number, name: p.name }))
   function handleMove(offeringId: string, direction: 'up' | 'down') {
     const current = localOfferingsMap[selectedId] ?? []
-    const next = applyOptimisticSwap(current, offeringId, direction)
+    const next = applyOptimisticMove(current, offeringId, direction)
     if (!next) return
     setLocalOfferingsMap((prev) => ({ ...prev, [selectedId]: next }))
     setMoveError(null)

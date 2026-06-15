@@ -66,9 +66,16 @@ describe('updateOffering', () => {
 })
 
 describe('moveOffering', () => {
-  it('swaps sort_order with the next sibling when moving down', async () => {
-    const a = await createOffering(supabase, { name: 'Move-A', propositionId: PROP_ID })
-    const b = await createOffering(supabase, { name: 'Move-B', propositionId: PROP_ID })
+  it('swaps sort_order with the next sibling when moving down within the same practice', async () => {
+    const { data: practice } = await supabase
+      .from('practices')
+      .select('id')
+      .limit(1)
+      .single()
+    const practiceId = practice?.id ?? null
+
+    const a = await createOffering(supabase, { name: 'Move-A', propositionId: PROP_ID, practiceId })
+    const b = await createOffering(supabase, { name: 'Move-B', propositionId: PROP_ID, practiceId })
     createdIds.push(a.id, b.id)
 
     const { data: before } = await supabase
@@ -91,6 +98,65 @@ describe('moveOffering', () => {
 
     expect(after!.find((r) => r.id === a.id)!.sort_order).toBe(orderB)
     expect(after!.find((r) => r.id === b.id)!.sort_order).toBe(orderA)
+  })
+
+  it('moves an offering into the next practice group when moving down across a practice boundary', async () => {
+    const { data: practiceRows } = await supabase
+      .from('practices')
+      .select('id')
+      .order('sort_order')
+      .limit(2)
+    const [pA, pB] = practiceRows!
+    if (!pA || !pB) return // skip if fewer than 2 practices exist
+
+    // Create one offering per practice so a is the last in pA and b is first in pB
+    const a = await createOffering(supabase, { name: 'CrossA', propositionId: PROP_ID, practiceId: pA.id })
+    const b = await createOffering(supabase, { name: 'CrossB', propositionId: PROP_ID, practiceId: pB.id })
+    createdIds.push(a.id, b.id)
+
+    await moveOffering(supabase, a.id, 'down')
+
+    const { data: updated } = await supabase
+      .from('offerings')
+      .select('practice_id')
+      .eq('id', a.id)
+      .single()
+
+    expect(updated?.practice_id).toBe(pB.id)
+  })
+
+  it('moves an offering into the previous practice group when moving up across a practice boundary', async () => {
+    const { data: practiceRows } = await supabase
+      .from('practices')
+      .select('id')
+      .order('sort_order')
+      .limit(2)
+    const [pA, pB] = practiceRows!
+    if (!pA || !pB) return
+
+    // Guarantee pA has an entry before pB in visual order by using low sort_orders.
+    // sort_order=-2 puts aData first in pA; sort_order=-1 puts bData first in pB.
+    const { data: aData } = await supabase
+      .from('offerings')
+      .insert({ name: 'CrossUp-A', proposition_id: PROP_ID, practice_id: pA.id, sort_order: -2 })
+      .select('id')
+      .single()
+    const { data: bData } = await supabase
+      .from('offerings')
+      .insert({ name: 'CrossUp-B', proposition_id: PROP_ID, practice_id: pB.id, sort_order: -1 })
+      .select('id')
+      .single()
+    createdIds.push(aData!.id, bData!.id)
+
+    await moveOffering(supabase, bData!.id, 'up')
+
+    const { data: updated } = await supabase
+      .from('offerings')
+      .select('practice_id')
+      .eq('id', bData!.id)
+      .single()
+
+    expect(updated?.practice_id).toBe(pA.id)
   })
 })
 

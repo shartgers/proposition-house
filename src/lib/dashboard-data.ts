@@ -17,28 +17,34 @@ export async function fetchDashboardData(supabase: SupabaseClient): Promise<Prop
         practice_id,
         description,
         key_outcomes,
-        practices ( name, practice_owner ),
+        practices ( name, practice_owner, sort_order ),
         cases ( count )
       )
     `)
     .order('number')
-    .order('sort_order', { referencedTable: 'offerings' })
 
   if (error) throw error
 
-  return (data ?? []).map((row) => ({
-    id: row.id,
-    number: row.number,
-    name: row.name,
-    offerings: (row.offerings ?? []).map((o: any) => ({
-      id: o.id,
-      name: o.name,
-      practiceId: o.practice_id ?? null,
-      practice: o.practices?.name ?? '',
-      practiceOwner: o.practices?.practice_owner ?? '',
-      description: o.description ?? null,
-      keyOutcomes: o.key_outcomes ?? null,
-      caseCount: (o.cases as { count: number }[])?.[0]?.count ?? 0,
-    })),
-  }))
+  return (data ?? []).map((row) => {
+    const offerings = (row.offerings ?? [])
+      .map((o: any) => ({
+        id: o.id,
+        name: o.name,
+        practiceId: o.practice_id ?? null,
+        practice: o.practices?.name ?? '',
+        practiceSortOrder: o.practices?.sort_order ?? 9999,
+        practiceOwner: o.practices?.practice_owner ?? '',
+        description: o.description ?? null,
+        keyOutcomes: o.key_outcomes ?? null,
+        caseCount: (o.cases as { count: number }[])?.[0]?.count ?? 0,
+        _sortOrder: o.sort_order as number,
+      }))
+      .sort((a: any, b: any) => {
+        if (a.practiceSortOrder !== b.practiceSortOrder) return a.practiceSortOrder - b.practiceSortOrder
+        return a._sortOrder - b._sortOrder
+      })
+      .map(({ _sortOrder: _, ...rest }: any) => rest)
+
+    return { id: row.id, number: row.number, name: row.name, offerings }
+  })
 }

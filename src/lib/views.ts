@@ -8,6 +8,7 @@ export type OfferingView = {
   name: string
   practiceId: string | null
   practice: string
+  practiceSortOrder: number
   practiceOwner: string
   description: string | null
   keyOutcomes: string | null

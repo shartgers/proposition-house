@@ -76,25 +76,45 @@ export async function moveOffering(
 ): Promise<void> {
   const { data: current, error: fetchError } = await supabase
     .from('offerings')
-    .select('sort_order, proposition_id')
+    .select('proposition_id')
     .eq('id', id)
     .single()
   if (fetchError || !current) throw fetchError ?? new Error('Offering not found')
 
-  const { data: siblings } = await supabase
+  // Fetch all siblings with their practice sort_order so we can build the visual order
+  const { data: siblingsRaw, error: siblingsError } = await supabase
     .from('offerings')
-    .select('id, sort_order')
+    .select('id, sort_order, practice_id, practices(sort_order)')
     .eq('proposition_id', current.proposition_id)
-    .order('sort_order', { ascending: true })
+  if (siblingsError) throw siblingsError
+  if (!siblingsRaw?.length) return
 
-  if (!siblings) return
+  // Sort by (practice.sort_order, offering.sort_order) — matches the UI grouping
+  const sorted = [...siblingsRaw].sort((a, b) => {
+    const psA = (a.practices as unknown as { sort_order: number } | null)?.sort_order ?? 9999
+    const psB = (b.practices as unknown as { sort_order: number } | null)?.sort_order ?? 9999
+    if (psA !== psB) return psA - psB
+    return a.sort_order - b.sort_order
+  })
 
-  const idx = siblings.findIndex((s) => s.id === id)
-  const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-  if (swapIdx < 0 || swapIdx >= siblings.length) return
+  const idx = sorted.findIndex((s) => s.id === id)
+  const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+  if (targetIdx < 0 || targetIdx >= sorted.length) return
 
-  const sibling = siblings[swapIdx]
+  const mover = sorted[idx]
+  const target = sorted[targetIdx]
 
-  await supabase.from('offerings').update({ sort_order: sibling.sort_order }).eq('id', id)
-  await supabase.from('offerings').update({ sort_order: current.sort_order }).eq('id', sibling.id)
+  if (mover.practice_id === target.practice_id) {
+    // Within same practice — swap sort_orders
+    await supabase.from('offerings').update({ sort_order: target.sort_order }).eq('id', id)
+    await supabase.from('offerings').update({ sort_order: mover.sort_order }).eq('id', target.id)
+  } else {
+    // Cross-practice — change practice_id and repack all sort_orders so the
+    // practice-grouped visual order is reflected in DB sort_orders
+    for (let i = 0; i < sorted.length; i++) {
+      const update: Record<string, unknown> = { sort_order: i }
+      if (sorted[i].id === id) update.practice_id = target.practice_id
+      await supabase.from('offerings').update(update).eq('id', sorted[i].id)
+    }
+  }
 }
