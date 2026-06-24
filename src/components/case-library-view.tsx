@@ -2,14 +2,15 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown, ChevronUp, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, Search, X } from 'lucide-react'
 import type { CaseLibraryRow } from '@/lib/case-library'
 import { filterCases } from '@/lib/case-filters'
 import { allocateCaseAction, removeCaseFromOfferingAction } from '@/app/actions/cases'
 import { AddCaseButton, EditCaseButton, DeleteCaseButton } from '@/components/case-crud-forms'
 
-type PropositionOption = { id: string; number: string; name: string; offerings: { id: string; name: string }[] }
-type PracticeOption = { id: string; name: string }
+type OfferingOption = { id: string; name: string; practiceId: string | null }
+type PropositionOption = { id: string; number: string; name: string; offerings: OfferingOption[] }
+type PracticeOption = { id: string; name: string; is_sector: boolean }
 
 const PROOF_COLOURS: Record<string, string> = {
   High: 'bg-emerald-100 text-emerald-700',
@@ -87,6 +88,7 @@ function OfferingChip({
 function CaseRow({
   row,
   propositions,
+  sectorOfferings,
   onAllocated,
   onDeallocated,
   onUpdated,
@@ -94,6 +96,7 @@ function CaseRow({
 }: {
   row: CaseLibraryRow
   propositions: PropositionOption[]
+  sectorOfferings: OfferingOption[]
   onAllocated: (caseId: string, offeringId: string, offeringName: string, practiceName: string | null) => void
   onDeallocated: (caseId: string, offeringId: string, offeringName: string) => void
   onUpdated: (caseId: string, patch: Partial<CaseLibraryRow>) => void
@@ -202,6 +205,13 @@ function CaseRow({
                     ))}
                   </optgroup>
                 ))}
+                {sectorOfferings.length > 0 && (
+                  <optgroup label="Our sectors">
+                    {sectorOfferings.map((o) => (
+                      <option key={o.id} value={o.id}>{o.name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
               <button
                 onClick={handleAssign}
@@ -241,6 +251,7 @@ export function CaseLibraryView({
   const [cases, setCases] = useState(initialCases)
   const [unallocatedCount, setUnallocatedCount] = useState(initialUnallocatedCount)
 
+  const [searchQuery, setSearchQuery] = useState('')
   const [propositionId, setPropositionId] = useState('')
   const [offeringId, setOfferingId] = useState('')
   const [proofLevel, setProofLevel] = useState('')
@@ -318,6 +329,11 @@ export function CaseLibraryView({
     router.refresh()
   }
 
+  const sectorPracticeIds = new Set(practices.filter((p) => p.is_sector).map((p) => p.id))
+  const sectorOfferings = propositions
+    .flatMap((p) => p.offerings)
+    .filter((o) => o.practiceId && sectorPracticeIds.has(o.practiceId))
+
   const hasFilters = propositionId || offeringId || proofLevel || sector || practiceId
 
   const resolvedOfferingName =
@@ -333,7 +349,26 @@ export function CaseLibraryView({
     practiceName: practiceId ? practices.find((p) => p.id === practiceId)?.name : undefined,
   })
 
-  const filteredUnallocated = filtered.filter((c) => c.offeringNames.length === 0).length
+  const searchTerm = searchQuery.trim().toLowerCase()
+  const isSearching = searchTerm.length >= 2
+  const searched = isSearching
+    ? filtered.filter((c) => {
+        const haystack = [
+          c.clientName,
+          c.sector,
+          c.dateRange,
+          c.proofLevel,
+          c.description,
+          c.result,
+          c.propositionName,
+          ...c.offeringNames,
+          ...c.practiceNames,
+        ].join(' ').toLowerCase()
+        return searchTerm.split(/\s+/).every((term) => haystack.includes(term))
+      })
+    : filtered
+
+  const filteredUnallocated = searched.filter((c) => c.offeringNames.length === 0).length
 
   return (
     <div className="space-y-5">
@@ -345,14 +380,35 @@ export function CaseLibraryView({
             {unallocatedCount} unallocated
           </span>
         </div>
-        {hasFilters && (
+        {(hasFilters || isSearching) && (
           <span className="text-sm text-muted-foreground">
-            Showing {filtered.length}{filtered.length !== cases.length ? ` · ${filteredUnallocated} unallocated` : ''}
+            Showing {searched.length}{searched.length !== cases.length ? ` · ${filteredUnallocated} unallocated` : ''}
           </span>
         )}
         <div className="ml-auto">
           <AddCaseButton propositions={propositions} onAdded={handleAdded} />
         </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <input
+          type="search"
+          placeholder="Search by client, sector, description, offering, practice…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full rounded-xl border border-border bg-card shadow-soft pl-9 pr-9 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery('')}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Clear search"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Filter bar */}
@@ -414,15 +470,16 @@ export function CaseLibraryView({
       </div>
 
       {/* Case list */}
-      {filtered.length === 0 ? (
+      {searched.length === 0 ? (
         <p className="text-sm text-muted-foreground py-4">No cases match the current filters.</p>
       ) : (
         <div className="space-y-2">
-          {filtered.map((c) => (
+          {searched.map((c) => (
             <CaseRow
               key={c.id}
               row={c}
               propositions={propositions}
+              sectorOfferings={sectorOfferings}
               onAllocated={handleAllocated}
               onDeallocated={handleDeallocated}
               onUpdated={handleUpdated}

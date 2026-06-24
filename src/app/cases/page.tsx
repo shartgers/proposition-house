@@ -17,20 +17,24 @@ export default async function CasesPage() {
       countUnallocatedCases(supabase),
       supabase
         .from('propositions')
-        .select('id, number, name, offerings ( id, name )')
+        .select('id, number, name, offerings ( id, name, practice_id )')
         .order('number')
         .order('sort_order', { referencedTable: 'offerings' }),
-      supabase.from('practices').select('id, name').order('name'),
+      supabase.from('practices').select('id, name, is_sector').order('name'),
     ])
 
   const propositions = (propositionsRaw ?? []).map((p) => ({
     id: p.id,
     number: p.number,
     name: p.name,
-    offerings: (p.offerings as { id: string; name: string }[] ?? []),
+    offerings: (p.offerings as { id: string; name: string; practice_id: string | null }[] ?? []).map((o) => ({
+      id: o.id,
+      name: o.name,
+      practiceId: o.practice_id,
+    })),
   }))
 
-  const practices = (practicesRaw ?? []) as { id: string; name: string }[]
+  const practices = (practicesRaw ?? []) as { id: string; name: string; is_sector: boolean }[]
 
   const sectors = [...new Set(cases.map((c) => c.sector))].sort()
 
