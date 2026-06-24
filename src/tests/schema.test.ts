@@ -55,10 +55,12 @@ describe('schema + seed', () => {
       ;(data as CaseRow[]).forEach((c) => expect(c.proposition_id).toBeTruthy())
     })
 
-    it('all cases start unallocated (offering_id is null)', async () => {
-      const { data, error } = await client.from('cases').select('*')
+    it('all cases start unallocated (no rows in case_offerings)', async () => {
+      const { count, error } = await client
+        .from('case_offerings')
+        .select('*', { count: 'exact', head: true })
       if (error) throw error
-      ;(data as CaseRow[]).forEach((c) => expect(c.offering_id).toBeNull())
+      expect(count).toBe(0)
     })
   })
 
@@ -86,10 +88,9 @@ describe('schema + seed', () => {
     })
   })
 
-  // RED → GREEN #4: deleting an offering orphans its cases (SET NULL, not cascade)
+  // RED → GREEN #4: deleting an offering cascades to remove case_offerings rows
   describe('offering delete behaviour', () => {
-    it('sets offering_id to null on cases when their offering is deleted', async () => {
-      // Insert a test offering
+    it('cascade-deletes case_offerings rows when offering is deleted', async () => {
       const { data: proposition } = await client
         .from('propositions')
         .select('id')
@@ -98,49 +99,51 @@ describe('schema + seed', () => {
 
       const { data: offering, error: offeringError } = await client
         .from('offerings')
-        .insert({
-          name: 'Test Offering',
-          sort_order: 999,
-          proposition_id: proposition!.id,
-        })
+        .insert({ name: 'Test Offering', sort_order: 999, proposition_id: proposition!.id })
         .select('id')
         .single()
       expect(offeringError).toBeNull()
 
-      // Insert a test case linked to that offering
+      // Insert a test case and link it via the junction table
       const { data: insertedCase, error: caseError } = await client
         .from('cases')
         .insert({
-          client_name: 'Orphan Test Client',
+          client_name: 'Cascade Test Client',
           sector: 'Test',
           date_range: '2025',
           proof_level: 'Medium',
-          description: 'will be orphaned',
+          description: 'cascade test',
           result: 'n/a',
           proposition_id: proposition!.id,
-          offering_id: offering!.id,
         })
         .select('id')
         .single()
       expect(caseError).toBeNull()
 
-      // Delete the offering
+      await client.from('case_offerings').insert({ case_id: insertedCase!.id, offering_id: offering!.id })
+
+      // Delete the offering — should cascade-delete the junction row
       const { error: deleteError } = await client
         .from('offerings')
         .delete()
         .eq('id', offering!.id)
       expect(deleteError).toBeNull()
 
-      // Case should still exist with offering_id = null
-      const { data: orphanedCase } = await client
-        .from('cases')
+      // case_offerings row must be gone
+      const { data: remaining } = await client
+        .from('case_offerings')
         .select('offering_id')
+        .eq('case_id', insertedCase!.id)
+      expect(remaining).toHaveLength(0)
+
+      // Case itself must still exist (was not deleted)
+      const { data: caseStillExists } = await client
+        .from('cases')
+        .select('id')
         .eq('id', insertedCase!.id)
         .single()
+      expect(caseStillExists).not.toBeNull()
 
-      expect(orphanedCase!.offering_id).toBeNull()
-
-      // Cleanup
       await client.from('cases').delete().eq('id', insertedCase!.id)
     })
   })

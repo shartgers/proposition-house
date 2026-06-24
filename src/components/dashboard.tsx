@@ -16,7 +16,7 @@ import { OfferingCRUDDialogs } from '@/components/offering-crud-dialogs'
 import { OfferingDetailLoader } from '@/components/offering-detail-loader'
 
 type Practice = { id: string; name: string }
-export function Dashboard({ propositions, practices, initialPropositionNumber, userEmail, userInitials }: { propositions: PropositionView[]; practices: Practice[]; initialPropositionNumber: string; userEmail: string; userInitials: string }) {
+export function Dashboard({ propositions, practices, initialPropositionNumber, userInitials }: { propositions: PropositionView[]; practices: Practice[]; initialPropositionNumber: string; userInitials: string }) {
   const initial = propositions.find((p) => p.number === initialPropositionNumber) ?? propositions[0]
   const [selectedId, setSelectedId] = useState(initial.id)
   const selected = propositions.find((p) => p.id === selectedId)!
@@ -146,7 +146,7 @@ export function Dashboard({ propositions, practices, initialPropositionNumber, u
   }
   return (
     <div className="flex flex-col h-screen bg-background">
-      <DashboardHeader userEmail={userEmail} userInitials={userInitials} />
+      <DashboardHeader userInitials={userInitials} />
       <div className="flex flex-1 overflow-hidden">
         <PropositionSidebar propositions={propositions} selectedId={selectedId}
           onSelect={(id) => { setSelectedId(id); setActiveOfferingId(null); setShowAddForm(false); setEditingId(null); setTrayPropositionFilter(id) }} />

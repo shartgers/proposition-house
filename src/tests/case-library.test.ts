@@ -11,7 +11,6 @@ const supabase: SupabaseClient = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Proposition 01 id — looked up once, used across filter tests
 let prop01Id: string
 let prop01CaseCount: number
 
@@ -19,17 +18,11 @@ beforeAll(async () => {
   await cleanupTestArtifacts(supabase)
 })
 
-// Teardown for any test data created mid-suite
 const createdPracticeIds: string[] = []
 const createdOfferingIds: string[] = []
-const linkedCaseIds: string[] = []
 
 afterEach(async () => {
-  // unlink cases before deleting offerings
-  if (linkedCaseIds.length) {
-    await supabase.from('cases').update({ offering_id: null }).in('id', linkedCaseIds)
-    linkedCaseIds.length = 0
-  }
+  // Deleting offerings cascades to case_offerings — no manual junction cleanup needed.
   if (createdOfferingIds.length) {
     await supabase.from('offerings').delete().in('id', createdOfferingIds)
     createdOfferingIds.length = 0
@@ -60,15 +53,14 @@ describe('fetchCaseLibrary — shape', () => {
     expect(typeof row.result).toBe('string')
     expect(typeof row.propositionName).toBe('string')
     expect(row.propositionName.length).toBeGreaterThan(0)
-    // offeringName and practiceName may be null (unallocated)
-    expect('offeringName' in row).toBe(true)
-    expect('practiceName' in row).toBe(true)
+    expect(Array.isArray(row.offeringNames)).toBe(true)
+    expect(Array.isArray(row.practiceNames)).toBe(true)
   })
 
-  it('all 99 seeded cases are unallocated (offeringName is null)', async () => {
+  it('all 99 seeded cases are unallocated (offeringNames is empty)', async () => {
     const cases = await fetchCaseLibrary(supabase)
-    expect(cases.every((c) => c.offeringName === null)).toBe(true)
-    expect(cases.every((c) => c.practiceName === null)).toBe(true)
+    expect(cases.every((c) => c.offeringNames.length === 0)).toBe(true)
+    expect(cases.every((c) => c.practiceNames.length === 0)).toBe(true)
   })
 })
 
@@ -81,7 +73,6 @@ describe('countUnallocatedCases', () => {
   })
 
   it('decreases by 1 when a case is linked to an offering', async () => {
-    // Set up a temporary offering and link one case
     const { data: prop } = await supabase.from('propositions').select('id').eq('number', '01').single()
     const { data: offering } = await supabase
       .from('offerings')
@@ -91,8 +82,7 @@ describe('countUnallocatedCases', () => {
     createdOfferingIds.push(offering!.id)
 
     const { data: caseRow } = await supabase.from('cases').select('id').limit(1).single()
-    await supabase.from('cases').update({ offering_id: offering!.id }).eq('id', caseRow!.id)
-    linkedCaseIds.push(caseRow!.id)
+    await supabase.from('case_offerings').insert({ case_id: caseRow!.id, offering_id: offering!.id })
 
     const count = await countUnallocatedCases(supabase)
     expect(count).toBe(98)
@@ -134,8 +124,7 @@ describe('fetchCaseLibrary — filter unallocated (offeringId: null)', () => {
     createdOfferingIds.push(offering!.id)
 
     const { data: caseRow } = await supabase.from('cases').select('id').limit(1).single()
-    await supabase.from('cases').update({ offering_id: offering!.id }).eq('id', caseRow!.id)
-    linkedCaseIds.push(caseRow!.id)
+    await supabase.from('case_offerings').insert({ case_id: caseRow!.id, offering_id: offering!.id })
 
     const cases = await fetchCaseLibrary(supabase, { offeringId: null })
     expect(cases).toHaveLength(98)
@@ -155,14 +144,17 @@ describe('fetchCaseLibrary — filter by offeringId', () => {
       .single()
     createdOfferingIds.push(offering!.id)
 
-    const { data: [caseA, caseB] } = await supabase.from('cases').select('id').limit(2)
-    await supabase.from('cases').update({ offering_id: offering!.id }).in('id', [caseA.id, caseB.id])
-    linkedCaseIds.push(caseA.id, caseB.id)
+    const { data: casePair } = await supabase.from('cases').select('id').limit(2)
+    const [caseA, caseB] = casePair!
+    await supabase.from('case_offerings').insert([
+      { case_id: caseA.id, offering_id: offering!.id },
+      { case_id: caseB.id, offering_id: offering!.id },
+    ])
 
     const filtered = await fetchCaseLibrary(supabase, { offeringId: offering!.id })
     expect(filtered).toHaveLength(2)
     expect(filtered.map((c) => c.id).sort()).toEqual([caseA.id, caseB.id].sort())
-    expect(filtered.every((c) => c.offeringName === '__offering-filter-test')).toBe(true)
+    expect(filtered.every((c) => c.offeringNames.includes('__offering-filter-test'))).toBe(true)
   })
 })
 
@@ -191,7 +183,6 @@ describe('fetchCaseLibrary — filter by proofLevel', () => {
 
 describe('fetchCaseLibrary — filter by sector', () => {
   it('returns only cases for that sector', async () => {
-    // Energy / Utilities appears frequently in the seed data
     const filtered = await fetchCaseLibrary(supabase, { sector: 'Energy / Utilities' })
     expect(filtered.length).toBeGreaterThan(0)
     expect(filtered.every((c) => c.sector === 'Energy / Utilities')).toBe(true)
@@ -204,7 +195,6 @@ describe('fetchCaseLibrary — filter by practiceId', () => {
   it('returns only cases linked to offerings owned by that practice', async () => {
     const { data: prop } = await supabase.from('propositions').select('id').eq('number', '03').single()
 
-    // Create a practice and two offerings under it
     const { data: practice } = await supabase
       .from('practices')
       .insert({ name: '__practice-filter-test', practice_owner: 'Tester' })
@@ -219,14 +209,17 @@ describe('fetchCaseLibrary — filter by practiceId', () => {
       .single()
     createdOfferingIds.push(offering!.id)
 
-    const { data: [caseA, caseB] } = await supabase.from('cases').select('id').limit(2)
-    await supabase.from('cases').update({ offering_id: offering!.id }).in('id', [caseA.id, caseB.id])
-    linkedCaseIds.push(caseA.id, caseB.id)
+    const { data: casePair } = await supabase.from('cases').select('id').limit(2)
+    const [caseA, caseB] = casePair!
+    await supabase.from('case_offerings').insert([
+      { case_id: caseA.id, offering_id: offering!.id },
+      { case_id: caseB.id, offering_id: offering!.id },
+    ])
 
     const filtered = await fetchCaseLibrary(supabase, { practiceId: practice!.id })
     expect(filtered).toHaveLength(2)
     expect(filtered.map((c) => c.id).sort()).toEqual([caseA.id, caseB.id].sort())
-    expect(filtered.every((c) => c.practiceName === '__practice-filter-test')).toBe(true)
+    expect(filtered.every((c) => c.practiceNames.includes('__practice-filter-test'))).toBe(true)
   })
 
   it('returns empty array when the practice has no linked offerings', async () => {

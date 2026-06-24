@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronDown, ChevronUp, X } from 'lucide-react'
 import type { CaseLibraryRow } from '@/lib/case-library'
 import { filterCases } from '@/lib/case-filters'
-import { allocateCaseAction } from '@/app/actions/cases'
+import { allocateCaseAction, removeCaseFromOfferingAction } from '@/app/actions/cases'
 import { AddCaseButton, EditCaseButton, DeleteCaseButton } from '@/components/case-crud-forms'
 
 type PropositionOption = { id: string; number: string; name: string; offerings: { id: string; name: string }[] }
@@ -49,16 +49,53 @@ function FilterSelect({
   )
 }
 
+function OfferingChip({
+  name,
+  offeringId,
+  caseId,
+  onRemoved,
+}: {
+  name: string
+  offeringId: string
+  caseId: string
+  onRemoved: (offeringId: string, offeringName: string) => void
+}) {
+  const [pending, startTransition] = useTransition()
+
+  function handleRemove() {
+    startTransition(async () => {
+      await removeCaseFromOfferingAction(caseId, offeringId)
+      onRemoved(offeringId, name)
+    })
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+      {name}
+      <button
+        onClick={handleRemove}
+        disabled={pending}
+        title={`Remove from ${name}`}
+        className="hover:text-rose-600 transition-colors disabled:opacity-40"
+      >
+        <X className="w-3 h-3" />
+      </button>
+    </span>
+  )
+}
+
 function CaseRow({
   row,
   propositions,
   onAllocated,
+  onDeallocated,
   onUpdated,
   onDeleted,
 }: {
   row: CaseLibraryRow
   propositions: PropositionOption[]
-  onAllocated: (caseId: string, offeringName: string, practiceName: string | null, propositionName: string) => void
+  onAllocated: (caseId: string, offeringId: string, offeringName: string, practiceName: string | null) => void
+  onDeallocated: (caseId: string, offeringId: string, offeringName: string) => void
   onUpdated: (caseId: string, patch: Partial<CaseLibraryRow>) => void
   onDeleted: (caseId: string) => void
 }) {
@@ -66,17 +103,17 @@ function CaseRow({
   const [selectedOfferingId, setSelectedOfferingId] = useState('')
   const [pending, startTransition] = useTransition()
 
-  // All offerings flattened, grouped by proposition for <optgroup>
-  const flatOfferings = propositions.flatMap((p) =>
-    p.offerings.map((o) => ({ ...o, propNumber: p.number, propName: p.name, propId: p.id }))
+  // Build a lookup of offeringId → offering for the chips remove handler
+  const offeringIdByName: Record<string, string> = {}
+  propositions.forEach((p) =>
+    p.offerings.forEach((o) => { offeringIdByName[o.name] = o.id })
   )
 
   function handleAssign() {
     if (!selectedOfferingId) return
     startTransition(async () => {
       const result = await allocateCaseAction(row.id, selectedOfferingId)
-      onAllocated(row.id, result.offeringName, result.practiceName, result.propositionName)
-      setOpen(false)
+      onAllocated(row.id, selectedOfferingId, result.offeringName, result.practiceName)
       setSelectedOfferingId('')
     })
   }
@@ -93,12 +130,14 @@ function CaseRow({
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${PROOF_COLOURS[row.proofLevel] ?? 'bg-slate-100 text-slate-600'}`}>
               {row.proofLevel}
             </span>
-            {row.offeringName === null ? (
+            {row.offeringNames.length === 0 ? (
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
                 Unallocated
               </span>
             ) : (
-              <span className="text-xs text-muted-foreground">{row.offeringName}</span>
+              row.offeringNames.map((n) => (
+                <span key={n} className="text-xs text-muted-foreground">{n}</span>
+              ))
             )}
           </div>
           <p className="text-xs text-muted-foreground">
@@ -121,10 +160,33 @@ function CaseRow({
             </div>
           )}
 
-          {/* Assign to offering */}
+          {/* Current allocations */}
+          {row.offeringNames.length > 0 && (
+            <div className="pt-1 border-t border-border space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Allocated to</p>
+              <div className="flex flex-wrap gap-1.5">
+                {row.offeringNames.map((name) => {
+                  const offeringId = offeringIdByName[name]
+                  return offeringId ? (
+                    <OfferingChip
+                      key={name}
+                      name={name}
+                      offeringId={offeringId}
+                      caseId={row.id}
+                      onRemoved={(oid, oname) => onDeallocated(row.id, oid, oname)}
+                    />
+                  ) : (
+                    <span key={name} className="text-xs text-muted-foreground">{name}</span>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Add to offering */}
           <div className="pt-1 border-t border-border space-y-2">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              {row.offeringName ? 'Reassign to offering' : 'Assign to offering'}
+              Add to offering
             </p>
             <div className="flex gap-2">
               <select
@@ -146,7 +208,7 @@ function CaseRow({
                 disabled={!selectedOfferingId || pending}
                 className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
               >
-                {pending ? '…' : 'Save'}
+                {pending ? '…' : 'Add'}
               </button>
             </div>
           </div>
@@ -203,17 +265,38 @@ export function CaseLibraryView({
 
   function handleAllocated(
     caseId: string,
+    _offeringId: string,
     offeringName: string,
-    practiceName: string | null,
-    propositionName: string
+    practiceName: string | null
   ) {
-    const wasUnallocated = cases.find((c) => c.id === caseId)?.offeringName === null
+    setCases((prev) =>
+      prev.map((c) => {
+        if (c.id !== caseId) return c
+        const offeringNames = c.offeringNames.includes(offeringName)
+          ? c.offeringNames
+          : [...c.offeringNames, offeringName]
+        const practiceNames =
+          practiceName && !c.practiceNames.includes(practiceName)
+            ? [...c.practiceNames, practiceName]
+            : c.practiceNames
+        return { ...c, offeringNames, practiceNames }
+      })
+    )
+    const wasUnallocated = cases.find((c) => c.id === caseId)?.offeringNames.length === 0
+    if (wasUnallocated) setUnallocatedCount((n) => n - 1)
+    router.refresh()
+  }
+
+  function handleDeallocated(caseId: string, _offeringId: string, offeringName: string) {
+    const wasAllocated = cases.find((c) => c.id === caseId)?.offeringNames.length === 1
     setCases((prev) =>
       prev.map((c) =>
-        c.id === caseId ? { ...c, offeringName, practiceName, propositionName } : c
+        c.id === caseId
+          ? { ...c, offeringNames: c.offeringNames.filter((n) => n !== offeringName) }
+          : c
       )
     )
-    if (wasUnallocated) setUnallocatedCount((n) => n - 1)
+    if (wasAllocated) setUnallocatedCount((n) => n + 1)
     router.refresh()
   }
 
@@ -224,7 +307,7 @@ export function CaseLibraryView({
 
   function handleDeleted(caseId: string) {
     const deleted = cases.find((c) => c.id === caseId)
-    if (deleted?.offeringName === null) setUnallocatedCount((n) => n - 1)
+    if (deleted?.offeringNames.length === 0) setUnallocatedCount((n) => n - 1)
     setCases((prev) => prev.filter((c) => c.id !== caseId))
     router.refresh()
   }
@@ -250,7 +333,7 @@ export function CaseLibraryView({
     practiceName: practiceId ? practices.find((p) => p.id === practiceId)?.name : undefined,
   })
 
-  const filteredUnallocated = filtered.filter((c) => c.offeringName === null).length
+  const filteredUnallocated = filtered.filter((c) => c.offeringNames.length === 0).length
 
   return (
     <div className="space-y-5">
@@ -341,6 +424,7 @@ export function CaseLibraryView({
               row={c}
               propositions={propositions}
               onAllocated={handleAllocated}
+              onDeallocated={handleDeallocated}
               onUpdated={handleUpdated}
               onDeleted={handleDeleted}
             />

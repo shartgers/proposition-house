@@ -39,7 +39,6 @@ describe('createCase', () => {
     expect(data?.description).toBe('Test description')
     expect(data?.result).toBe('Test result')
     expect(data?.proposition_id).toBe(PROP_ID)
-    expect(data?.offering_id).toBeNull()
   })
 })
 

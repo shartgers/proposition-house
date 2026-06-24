@@ -25,6 +25,7 @@ export type PracticeRow = {
   practice_owner: string
   unit: PracticeUnit | null
   sort_order: number
+  is_sector: boolean
 }
 
 export type OfferingRow = {
@@ -46,5 +47,4 @@ export type CaseRow = {
   description: string
   result: string
   proposition_id: string
-  offering_id: string | null
 }

@@ -173,8 +173,8 @@ export function AddCaseButton({
         description: input.description,
         result: input.result ?? '',
         propositionName: prop?.name ?? '',
-        offeringName: null,
-        practiceName: null,
+        offeringNames: [],
+        practiceNames: [],
       })
       setOpen(false)
       setValues({})

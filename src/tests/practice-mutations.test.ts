@@ -209,6 +209,68 @@ describe('getPractices — unit field', () => {
   })
 })
 
+// ─── isSector field ──────────────────────────────────────────────────────────
+
+describe('createPractice — isSector field', () => {
+  it('defaults isSector to false when not provided', async () => {
+    const { id } = await createPractice(supabase, { name: '__isSector Default', practiceOwner: 'Owner' })
+    createdPracticeIds.push(id)
+
+    const { data } = await supabase.from('practices').select('is_sector').eq('id', id).single()
+    expect(data?.is_sector).toBe(false)
+  })
+
+  it('stores isSector: true when provided', async () => {
+    const { id } = await createPractice(supabase, { name: '__Sector Practice', practiceOwner: 'Owner', isSector: true })
+    createdPracticeIds.push(id)
+
+    const { data } = await supabase.from('practices').select('is_sector').eq('id', id).single()
+    expect(data?.is_sector).toBe(true)
+  })
+})
+
+describe('updatePractice — isSector field', () => {
+  it('can set isSector to true', async () => {
+    const { id } = await createPractice(supabase, { name: '__Toggle Sector', practiceOwner: 'Owner' })
+    createdPracticeIds.push(id)
+
+    await updatePractice(supabase, id, { isSector: true })
+
+    const { data } = await supabase.from('practices').select('is_sector').eq('id', id).single()
+    expect(data?.is_sector).toBe(true)
+  })
+
+  it('can clear isSector back to false', async () => {
+    const { id } = await createPractice(supabase, { name: '__Clear Sector', practiceOwner: 'Owner', isSector: true })
+    createdPracticeIds.push(id)
+
+    await updatePractice(supabase, id, { isSector: false })
+
+    const { data } = await supabase.from('practices').select('is_sector').eq('id', id).single()
+    expect(data?.is_sector).toBe(false)
+  })
+})
+
+describe('getPractices — isSector field', () => {
+  it('returns isSector: true for sector practices', async () => {
+    const { id } = await createPractice(supabase, { name: '__isSector True', practiceOwner: 'Owner', isSector: true })
+    createdPracticeIds.push(id)
+
+    const practices = await getPractices(supabase)
+    const found = practices.find((p) => p.id === id)
+    expect(found?.isSector).toBe(true)
+  })
+
+  it('returns isSector: false for non-sector practices', async () => {
+    const { id } = await createPractice(supabase, { name: '__isSector False', practiceOwner: 'Owner' })
+    createdPracticeIds.push(id)
+
+    const practices = await getPractices(supabase)
+    const found = practices.find((p) => p.id === id)
+    expect(found?.isSector).toBe(false)
+  })
+})
+
 describe('deletePractice', () => {
   it('removes the row when the practice has no offerings', async () => {
     const { id } = await createPractice(supabase, { name: 'Empty Practice', practiceOwner: 'Nobody' })

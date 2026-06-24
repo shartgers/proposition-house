@@ -24,15 +24,15 @@ export default async function PracticesPage() {
         </Link>
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Xomnia</p>
-          <h1 className="font-heading text-base font-semibold leading-tight">Practices</h1>
+          <h1 className="font-heading text-base font-semibold leading-tight">Practices and Sectors</h1>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-8 bg-background">
         <div className="max-w-6xl">
           <div className="mb-7">
-            <h2 className="font-heading text-2xl font-semibold">Practices</h2>
-            <p className="text-muted-foreground text-sm mt-1.5">{practices.length} practice{practices.length !== 1 ? 's' : ''}</p>
+            <h2 className="font-heading text-2xl font-semibold">Practices and Sectors</h2>
+            <p className="text-muted-foreground text-sm mt-1.5">{practices.length} item{practices.length !== 1 ? 's' : ''}</p>
           </div>
           <PracticesAdmin initial={practices} />
         </div>

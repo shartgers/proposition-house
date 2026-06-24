@@ -11,7 +11,7 @@ export async function cleanupTestArtifacts(supabase: SupabaseClient) {
 
   if (testOfferings?.length) {
     const ids = testOfferings.map((o: { id: string }) => o.id)
-    await supabase.from('cases').update({ offering_id: null }).in('offering_id', ids)
+    // ON DELETE CASCADE removes case_offerings rows automatically.
     await supabase.from('offerings').delete().in('id', ids)
   }
 

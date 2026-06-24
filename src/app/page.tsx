@@ -34,7 +34,6 @@ export default async function Home({
       propositions={propositions}
       practices={practices}
       initialPropositionNumber={initialPropositionNumber}
-      userEmail={user.email ?? ''}
       userInitials={initials}
     />
   )

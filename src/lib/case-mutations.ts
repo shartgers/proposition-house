@@ -25,7 +25,6 @@ export async function createCase(
       description: input.description,
       result: input.result,
       proposition_id: input.propositionId,
-      offering_id: null,
     })
     .select('id')
     .single()
@@ -56,40 +55,54 @@ export async function deleteCase(supabase: SupabaseClient, id: string): Promise<
   if (error) throw error
 }
 
-export async function unallocateCase(
-  supabase: SupabaseClient,
-  caseId: string
-): Promise<void> {
-  // Send the case back to the unallocated pool. proposition_id is left as-is:
-  // it already matches the proposition the case was allocated under, which
-  // remains the correct value for the unallocated state.
-  const { error } = await supabase
-    .from('cases')
-    .update({ offering_id: null })
-    .eq('id', caseId)
-
-  if (error) throw error
-}
-
+// Adds a case to an offering. Idempotent — safe to call more than once for the
+// same pair. Does not touch proposition_id; the offering determines the
+// proposition context, not the case row.
 export async function allocateCase(
   supabase: SupabaseClient,
   caseId: string,
   offeringId: string
 ): Promise<void> {
-  const { data: offering, error: offeringError } = await supabase
+  // Validate offering exists first so callers get a meaningful error.
+  const { error: offeringError } = await supabase
     .from('offerings')
-    .select('proposition_id')
+    .select('id')
     .eq('id', offeringId)
     .single()
 
-  if (offeringError || !offering) {
-    throw offeringError ?? new Error('Offering not found')
-  }
+  if (offeringError) throw offeringError ?? new Error('Offering not found')
 
   const { error } = await supabase
-    .from('cases')
-    .update({ offering_id: offeringId, proposition_id: offering.proposition_id })
-    .eq('id', caseId)
+    .from('case_offerings')
+    .upsert({ case_id: caseId, offering_id: offeringId }, { onConflict: 'case_id,offering_id' })
+
+  if (error) throw error
+}
+
+// Removes a case from a specific offering only.
+export async function removeCaseFromOffering(
+  supabase: SupabaseClient,
+  caseId: string,
+  offeringId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('case_offerings')
+    .delete()
+    .eq('case_id', caseId)
+    .eq('offering_id', offeringId)
+
+  if (error) throw error
+}
+
+// Removes a case from all offerings (full unallocation).
+export async function unallocateCase(
+  supabase: SupabaseClient,
+  caseId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('case_offerings')
+    .delete()
+    .eq('case_id', caseId)
 
   if (error) throw error
 }

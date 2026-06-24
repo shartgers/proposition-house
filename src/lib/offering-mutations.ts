@@ -59,12 +59,7 @@ export async function deleteOffering(
   supabase: SupabaseClient,
   id: string
 ): Promise<void> {
-  const { error: caseError } = await supabase
-    .from('cases')
-    .update({ offering_id: null })
-    .eq('offering_id', id)
-  if (caseError) throw caseError
-
+  // case_offerings rows are removed automatically by ON DELETE CASCADE.
   const { error } = await supabase.from('offerings').delete().eq('id', id)
   if (error) throw error
 }

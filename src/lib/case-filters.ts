@@ -12,13 +12,13 @@ export function filterCases(cases: CaseLibraryRow[], filters: CaseDisplayFilters
   return cases.filter((c) => {
     if (filters.propositionName && c.propositionName !== filters.propositionName) return false
     if (filters.offeringName === null) {
-      if (c.offeringName !== null) return false
+      if (c.offeringNames.length !== 0) return false
     } else if (filters.offeringName) {
-      if (c.offeringName !== filters.offeringName) return false
+      if (!c.offeringNames.includes(filters.offeringName)) return false
     }
     if (filters.proofLevel && c.proofLevel !== filters.proofLevel) return false
     if (filters.sector && c.sector !== filters.sector) return false
-    if (filters.practiceName && c.practiceName !== filters.practiceName) return false
+    if (filters.practiceName && !c.practiceNames.includes(filters.practiceName)) return false
     return true
   })
 }

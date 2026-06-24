@@ -7,6 +7,7 @@ export type PracticeInput = {
   name: string
   practiceOwner: string
   unit?: PracticeUnit | null
+  isSector?: boolean
 }
 
 // Patch for updatePractice — the form fields plus the manual ordering position,
@@ -19,12 +20,13 @@ export type Practice = {
   practiceOwner: string
   unit: PracticeUnit | null
   sortOrder: number
+  isSector: boolean
 }
 
 export async function getPractices(supabase: SupabaseClient): Promise<Practice[]> {
   const { data, error } = await supabase
     .from('practices')
-    .select('id, name, practice_owner, unit, sort_order')
+    .select('id, name, practice_owner, unit, sort_order, is_sector')
     .order('sort_order')
   if (error) throw error
   return (data ?? []).map((p) => ({
@@ -33,6 +35,7 @@ export async function getPractices(supabase: SupabaseClient): Promise<Practice[]
     practiceOwner: p.practice_owner,
     unit: (p.unit as PracticeUnit | null) ?? null,
     sortOrder: p.sort_order ?? 0,
+    isSector: p.is_sector ?? false,
   }))
 }
 
@@ -56,6 +59,7 @@ export async function createPractice(
       practice_owner: input.practiceOwner,
       unit: input.unit ?? null,
       sort_order: sortOrder,
+      is_sector: input.isSector ?? false,
     })
     .select('id, sort_order')
     .single()
@@ -73,6 +77,7 @@ export async function updatePractice(
   if (input.practiceOwner !== undefined) patch.practice_owner = input.practiceOwner
   if (input.unit !== undefined) patch.unit = input.unit
   if (input.sortOrder !== undefined) patch.sort_order = input.sortOrder
+  if (input.isSector !== undefined) patch.is_sector = input.isSector
 
   const { error } = await supabase.from('practices').update(patch).eq('id', id)
   if (error) throw error

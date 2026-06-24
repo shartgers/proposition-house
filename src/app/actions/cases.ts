@@ -2,20 +2,26 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAuthenticatedClient } from '@/lib/supabase/server'
-import { allocateCase, unallocateCase, createCase, updateCase, deleteCase } from '@/lib/case-mutations'
+import {
+  allocateCase,
+  unallocateCase,
+  removeCaseFromOffering,
+  createCase,
+  updateCase,
+  deleteCase,
+} from '@/lib/case-mutations'
 import type { CaseInput } from '@/lib/case-mutations'
 
-// Returns the offering's name + practice + proposition so callers can update local state
+// Returns the offering's metadata so the caller can update local state.
 export async function allocateCaseAction(
   caseId: string,
   offeringId: string
-): Promise<{ offeringName: string; practiceName: string | null; propositionName: string }> {
+): Promise<{ offeringName: string; practiceName: string | null }> {
   const { supabase } = await createAuthenticatedClient()
 
-  // Fetch offering metadata before mutating (needed for return value)
   const { data: offering } = await supabase
     .from('offerings')
-    .select('name, propositions ( name ), practices ( name )')
+    .select('name, practices ( name )')
     .eq('id', offeringId)
     .single()
 
@@ -24,17 +30,24 @@ export async function allocateCaseAction(
   revalidatePath('/cases')
   revalidatePath('/')
 
-  const o = offering as {
-    name: string
-    propositions: { name: string } | null
-    practices: { name: string } | null
-  } | null
+  const o = offering as { name: string; practices: { name: string } | null } | null
 
   return {
     offeringName: o?.name ?? '',
     practiceName: (o?.practices as { name: string } | null)?.name ?? null,
-    propositionName: (o?.propositions as { name: string } | null)?.name ?? '',
   }
+}
+
+export async function removeCaseFromOfferingAction(
+  caseId: string,
+  offeringId: string
+): Promise<void> {
+  const { supabase } = await createAuthenticatedClient()
+
+  await removeCaseFromOffering(supabase, caseId, offeringId)
+
+  revalidatePath('/cases')
+  revalidatePath('/')
 }
 
 export async function unallocateCaseAction(caseId: string): Promise<void> {

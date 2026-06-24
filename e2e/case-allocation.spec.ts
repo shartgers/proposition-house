@@ -15,9 +15,9 @@ test.describe('Case allocation', () => {
   test.afterEach(async () => {
     if (allocatedCaseId) {
       await adminClient()
-        .from('cases')
-        .update({ offering_id: null })
-        .eq('id', allocatedCaseId)
+        .from('case_offerings')
+        .delete()
+        .eq('case_id', allocatedCaseId)
       allocatedCaseId = null
       allocatedOfferingId = null
     }
@@ -54,8 +54,8 @@ test.describe('Case allocation', () => {
     expect(allocatedOfferingId).toBeTruthy()
     expect(selectedOfferingName).toBeTruthy()
 
-    // Click Save
-    await firstUnallocatedCard.getByRole('button', { name: 'Save' }).click()
+    // Click Add
+    await firstUnallocatedCard.getByRole('button', { name: 'Add' }).click()
 
     // Optimistic update: "Unallocated" badge should disappear
     await expect(firstUnallocatedCard.getByText('Unallocated')).not.toBeVisible({ timeout: 8_000 })
@@ -74,13 +74,11 @@ test.describe('Case allocation', () => {
     await expect(caseCount).toBeVisible()
 
     // Find the allocated case id so afterEach can clean up
-    const { data: offeringRow } = await adminClient()
-      .from('offerings')
-      .select('cases(id)')
-      .eq('id', allocatedOfferingId!)
-      .single()
+    const { data: junctionRows } = await adminClient()
+      .from('case_offerings')
+      .select('case_id')
+      .eq('offering_id', allocatedOfferingId!)
 
-    const linked = (offeringRow?.cases ?? []) as { id: string }[]
-    if (linked.length > 0) allocatedCaseId = linked[0].id
+    if (junctionRows && junctionRows.length > 0) allocatedCaseId = junctionRows[0].case_id
   })
 })

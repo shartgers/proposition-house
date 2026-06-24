@@ -13,18 +13,18 @@ function makeCase(overrides: Partial<CaseLibraryRow> = {}): CaseLibraryRow {
     description: 'desc',
     result: 'result',
     propositionName: 'Clear direction with AI',
-    offeringName: 'AI Strategy',
-    practiceName: 'Data & AI',
+    offeringNames: ['AI Strategy'],
+    practiceNames: ['Data & AI'],
     ...overrides,
   }
 }
 
 const CASES: CaseLibraryRow[] = [
-  makeCase({ id: '1', propositionName: 'Clear direction with AI', offeringName: 'AI Strategy', proofLevel: 'High', sector: 'Energy / Utilities', practiceName: 'Data & AI' }),
-  makeCase({ id: '2', propositionName: 'Clear direction with AI', offeringName: null, proofLevel: 'Medium', sector: 'Financial Services', practiceName: null }),
-  makeCase({ id: '3', propositionName: 'AI and Agentic solutions', offeringName: 'LLM Platform', proofLevel: 'Medium-High', sector: 'Energy / Utilities', practiceName: 'Engineering' }),
-  makeCase({ id: '4', propositionName: 'Data Foundation', offeringName: null, proofLevel: 'Low-Medium', sector: 'Public Sector', practiceName: null }),
-  makeCase({ id: '5', propositionName: 'Trusted AI', offeringName: 'AI Governance', proofLevel: 'High', sector: 'Financial Services', practiceName: 'Data & AI' }),
+  makeCase({ id: '1', propositionName: 'Clear direction with AI', offeringNames: ['AI Strategy'], proofLevel: 'High', sector: 'Energy / Utilities', practiceNames: ['Data & AI'] }),
+  makeCase({ id: '2', propositionName: 'Clear direction with AI', offeringNames: [], proofLevel: 'Medium', sector: 'Financial Services', practiceNames: [] }),
+  makeCase({ id: '3', propositionName: 'AI and Agentic solutions', offeringNames: ['LLM Platform'], proofLevel: 'Medium-High', sector: 'Energy / Utilities', practiceNames: ['Engineering'] }),
+  makeCase({ id: '4', propositionName: 'Data Foundation', offeringNames: [], proofLevel: 'Low-Medium', sector: 'Public Sector', practiceNames: [] }),
+  makeCase({ id: '5', propositionName: 'Trusted AI', offeringNames: ['AI Governance'], proofLevel: 'High', sector: 'Financial Services', practiceNames: ['Data & AI'] }),
 ]
 
 // ─── no filters ───────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ describe('filterCases — proposition', () => {
 // ─── offering filter ──────────────────────────────────────────────────────────
 
 describe('filterCases — offering name', () => {
-  it('returns only cases matching the offeringName', () => {
+  it('returns only cases that include the offeringName', () => {
     const result = filterCases(CASES, { offeringName: 'AI Strategy' })
     expect(result).toHaveLength(1)
     expect(result[0].id).toBe('1')
@@ -66,7 +66,7 @@ describe('filterCases — offering name', () => {
   it('returns unallocated cases when offeringName is null', () => {
     const result = filterCases(CASES, { offeringName: null })
     expect(result).toHaveLength(2)
-    expect(result.every((c) => c.offeringName === null)).toBe(true)
+    expect(result.every((c) => c.offeringNames.length === 0)).toBe(true)
   })
 
   it('returns empty array when no cases match the offering', () => {
@@ -105,10 +105,10 @@ describe('filterCases — sector', () => {
 // ─── practice filter ──────────────────────────────────────────────────────────
 
 describe('filterCases — practice', () => {
-  it('returns only cases matching the practiceName', () => {
+  it('returns only cases that include the practiceName', () => {
     const result = filterCases(CASES, { practiceName: 'Data & AI' })
     expect(result).toHaveLength(2)
-    expect(result.every((c) => c.practiceName === 'Data & AI')).toBe(true)
+    expect(result.every((c) => c.practiceNames.includes('Data & AI'))).toBe(true)
   })
 
   it('returns empty array when no cases match', () => {

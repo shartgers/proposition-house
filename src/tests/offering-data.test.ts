@@ -42,31 +42,24 @@ describe('fetchOfferingDetail', () => {
 describe('fetchAllUnallocatedCases', () => {
   let tempOfferingId: string
   let allocatedCaseId: string
-  let originalPropositionId: string
 
   beforeAll(async () => {
-    // Allocate one case to the first offering so it is no longer unallocated.
+    // Allocate one case via the junction table so it is no longer unallocated.
     const { data: c } = await supabase
       .from('cases')
       .select('id, proposition_id')
-      .is('offering_id', null)
       .limit(1)
       .single()
     allocatedCaseId = c!.id
-    originalPropositionId = c!.proposition_id
     tempOfferingId = firstOfferingId
-    await supabase.from('cases').update({ offering_id: tempOfferingId }).eq('id', allocatedCaseId)
+    await supabase.from('case_offerings').insert({ case_id: allocatedCaseId, offering_id: tempOfferingId })
   })
 
   afterAll(async () => {
-    // Restore the borrowed case to the unallocated pool.
-    await supabase
-      .from('cases')
-      .update({ offering_id: null, proposition_id: originalPropositionId })
-      .eq('id', allocatedCaseId)
+    await supabase.from('case_offerings').delete().eq('case_id', allocatedCaseId)
   })
 
-  it('returns only cases with offering_id = null', async () => {
+  it('returns only cases with no case_offerings rows', async () => {
     const cases = await fetchAllUnallocatedCases(supabase)
     expect(cases.some((c) => c.id === allocatedCaseId)).toBe(false)
     expect(cases.length).toBeGreaterThan(0)

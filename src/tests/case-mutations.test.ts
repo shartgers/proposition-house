@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll, afterEach } from 'vitest'
+import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
-import { allocateCase, unallocateCase } from '@/lib/case-mutations'
+import { allocateCase, unallocateCase, removeCaseFromOffering } from '@/lib/case-mutations'
 
 // Tests run against the real Supabase project.
 // Seed must be applied: all 99 cases unallocated, propositions 01–05 present.
@@ -26,7 +26,6 @@ beforeAll(async () => {
   prop01Id = props!.find((p) => p.number === '01')!.id
   prop02Id = props!.find((p) => p.number === '02')!.id
 
-  // Create two temporary offerings in different propositions
   const { data: o1 } = await supabase
     .from('offerings')
     .insert({ name: '__alloc-test-01', sort_order: 9998, proposition_id: prop01Id })
@@ -43,29 +42,16 @@ beforeAll(async () => {
   offering02Id = o2!.id
   createdOfferingIds.push(offering02Id)
 
-  // Pick any seeded case to use as a test subject
   const { data: c } = await supabase.from('cases').select('id').limit(1).single()
   testCaseId = c!.id
 })
 
 afterEach(async () => {
-  // Restore test case to unallocated + original proposition after each test
   if (testCaseId) {
-    const { data: original } = await supabase
-      .from('cases')
-      .select('proposition_id')
-      .eq('id', testCaseId)
-      .single()
-
-    await supabase
-      .from('cases')
-      .update({ offering_id: null, proposition_id: prop01Id })
-      .eq('id', testCaseId)
+    await supabase.from('case_offerings').delete().eq('case_id', testCaseId)
   }
 })
 
-// Clean up test offerings at end (vitest doesn't have afterAll in describe, so use module level)
-import { afterAll } from 'vitest'
 afterAll(async () => {
   if (createdOfferingIds.length) {
     await supabase.from('offerings').delete().in('id', createdOfferingIds)
@@ -73,63 +59,56 @@ afterAll(async () => {
 })
 
 describe('allocateCase', () => {
-  it('sets offering_id on the case', async () => {
+  it('inserts a row into case_offerings', async () => {
     await allocateCase(supabase, testCaseId, offering01Id)
 
     const { data } = await supabase
-      .from('cases')
+      .from('case_offerings')
       .select('offering_id')
-      .eq('id', testCaseId)
-      .single()
-    expect(data!.offering_id).toBe(offering01Id)
+      .eq('case_id', testCaseId)
+    expect(data?.map((r) => r.offering_id)).toContain(offering01Id)
   })
 
-  it('sets proposition_id to the offering\'s proposition', async () => {
-    await allocateCase(supabase, testCaseId, offering01Id)
-
-    const { data } = await supabase
+  it('does not modify proposition_id on the case', async () => {
+    const { data: before } = await supabase
       .from('cases')
       .select('proposition_id')
       .eq('id', testCaseId)
       .single()
-    expect(data!.proposition_id).toBe(prop01Id)
-  })
 
-  it('reassignment to a different offering updates offering_id', async () => {
-    await allocateCase(supabase, testCaseId, offering01Id)
     await allocateCase(supabase, testCaseId, offering02Id)
 
-    const { data } = await supabase
-      .from('cases')
-      .select('offering_id')
-      .eq('id', testCaseId)
-      .single()
-    expect(data!.offering_id).toBe(offering02Id)
-  })
-
-  it('reassignment to a different proposition updates proposition_id', async () => {
-    await allocateCase(supabase, testCaseId, offering01Id)
-    await allocateCase(supabase, testCaseId, offering02Id)
-
-    const { data } = await supabase
+    const { data: after } = await supabase
       .from('cases')
       .select('proposition_id')
       .eq('id', testCaseId)
       .single()
-    expect(data!.proposition_id).toBe(prop02Id)
+    expect(after!.proposition_id).toBe(before!.proposition_id)
   })
 
-  it('is idempotent — allocating to the same offering twice leaves the case unchanged', async () => {
+  it('can allocate to multiple offerings', async () => {
+    await allocateCase(supabase, testCaseId, offering01Id)
+    await allocateCase(supabase, testCaseId, offering02Id)
+
+    const { data } = await supabase
+      .from('case_offerings')
+      .select('offering_id')
+      .eq('case_id', testCaseId)
+    const ids = data?.map((r) => r.offering_id) ?? []
+    expect(ids).toContain(offering01Id)
+    expect(ids).toContain(offering02Id)
+  })
+
+  it('is idempotent — allocating to the same offering twice creates no duplicate', async () => {
     await allocateCase(supabase, testCaseId, offering01Id)
     await allocateCase(supabase, testCaseId, offering01Id)
 
     const { data } = await supabase
-      .from('cases')
-      .select('offering_id, proposition_id')
-      .eq('id', testCaseId)
-      .single()
-    expect(data!.offering_id).toBe(offering01Id)
-    expect(data!.proposition_id).toBe(prop01Id)
+      .from('case_offerings')
+      .select('offering_id')
+      .eq('case_id', testCaseId)
+      .eq('offering_id', offering01Id)
+    expect(data).toHaveLength(1)
   })
 
   it('throws for a non-existent offering id', async () => {
@@ -139,29 +118,38 @@ describe('allocateCase', () => {
   })
 })
 
-describe('unallocateCase', () => {
-  it('sets offering_id back to null', async () => {
+describe('removeCaseFromOffering', () => {
+  it('removes the specific row from case_offerings', async () => {
+    await allocateCase(supabase, testCaseId, offering01Id)
     await allocateCase(supabase, testCaseId, offering02Id)
+
+    await removeCaseFromOffering(supabase, testCaseId, offering01Id)
+
+    const { data } = await supabase
+      .from('case_offerings')
+      .select('offering_id')
+      .eq('case_id', testCaseId)
+    const ids = data?.map((r) => r.offering_id) ?? []
+    expect(ids).not.toContain(offering01Id)
+    expect(ids).toContain(offering02Id)
+  })
+})
+
+describe('unallocateCase', () => {
+  it('removes all case_offerings rows for the case', async () => {
+    await allocateCase(supabase, testCaseId, offering01Id)
+    await allocateCase(supabase, testCaseId, offering02Id)
+
     await unallocateCase(supabase, testCaseId)
 
     const { data } = await supabase
-      .from('cases')
+      .from('case_offerings')
       .select('offering_id')
-      .eq('id', testCaseId)
-      .single()
-    expect(data!.offering_id).toBeNull()
+      .eq('case_id', testCaseId)
+    expect(data).toHaveLength(0)
   })
 
-  it('leaves proposition_id unchanged (keeps the allocated proposition)', async () => {
-    // Allocate to an offering in proposition 02 → case proposition becomes 02
-    await allocateCase(supabase, testCaseId, offering02Id)
-    await unallocateCase(supabase, testCaseId)
-
-    const { data } = await supabase
-      .from('cases')
-      .select('proposition_id')
-      .eq('id', testCaseId)
-      .single()
-    expect(data!.proposition_id).toBe(prop02Id)
+  it('is safe on an already unallocated case', async () => {
+    await expect(unallocateCase(supabase, testCaseId)).resolves.not.toThrow()
   })
 })

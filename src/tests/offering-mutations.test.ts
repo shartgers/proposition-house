@@ -170,10 +170,9 @@ describe('deleteOffering', () => {
     expect(data).toBeNull()
   })
 
-  it('sets offering_id to null on linked cases', async () => {
+  it('cascades to remove case_offerings rows for linked cases', async () => {
     const { id } = await createOffering(supabase, { name: 'With cases', propositionId: PROP_ID })
 
-    // Link an existing case to this offering
     const { data: caseRow } = await supabase
       .from('cases')
       .select('id')
@@ -182,19 +181,18 @@ describe('deleteOffering', () => {
       .single()
 
     if (caseRow) {
-      await supabase.from('cases').update({ offering_id: id }).eq('id', caseRow.id)
+      await supabase.from('case_offerings').insert({ case_id: caseRow.id, offering_id: id })
 
       await deleteOffering(supabase, id)
 
-      const { data: updated } = await supabase
-        .from('cases')
+      const { data: remaining } = await supabase
+        .from('case_offerings')
         .select('offering_id')
-        .eq('id', caseRow.id)
-        .single()
-      expect(updated?.offering_id).toBeNull()
+        .eq('case_id', caseRow.id)
+        .eq('offering_id', id)
+      expect(remaining).toHaveLength(0)
 
-      // Restore case to unlinked state
-      await supabase.from('cases').update({ offering_id: null }).eq('id', caseRow.id)
+      // No cleanup needed — cascade deleted the junction row
     }
   })
 })

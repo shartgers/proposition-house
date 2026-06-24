@@ -59,18 +59,21 @@ function mapCaseRow(c: {
 }
 
 /**
- * Fetches every Case in the unallocated pool (offering_id IS NULL) across all
- * Propositions, sorted by Proof level (High → Ongoing). Proposition filtering
- * is left to the client so switching the Case Tray filter is instant.
+ * Fetches every Case with no entries in case_offerings (unallocated across all
+ * Propositions), sorted by Proof level (High → Ongoing).
  */
 export async function fetchAllUnallocatedCases(
   supabase: SupabaseClient
 ): Promise<CaseDetail[]> {
-  const { data, error } = await supabase
-    .from('cases')
-    .select(CASE_COLUMNS)
-    .is('offering_id', null)
+  const { data: allocated } = await supabase.from('case_offerings').select('case_id')
+  const allocatedIds = [...new Set(allocated?.map((r) => r.case_id) ?? [])]
 
+  let query = supabase.from('cases').select(CASE_COLUMNS)
+  if (allocatedIds.length > 0) {
+    query = query.not('id', 'in', `(${allocatedIds.join(',')})`)
+  }
+
+  const { data, error } = await query
   if (error) throw error
   return sortCasesByProofLevel((data ?? []).map(mapCaseRow))
 }
@@ -88,25 +91,36 @@ export async function fetchOfferingDetail(
       key_outcomes,
       proposition_id,
       propositions ( name ),
-      practices ( name, practice_owner ),
-      cases ( count )
+      practices ( name, practice_owner )
     `)
     .eq('id', id)
     .single()
 
   if (error || !data) return null
 
-  const [{ data: casesData }, { data: unallocatedData }] = await Promise.all([
-    supabase
-      .from('cases')
-      .select(CASE_COLUMNS)
-      .eq('offering_id', id),
-    supabase
-      .from('cases')
-      .select(CASE_COLUMNS)
-      .eq('proposition_id', data.proposition_id)
-      .is('offering_id', null),
-  ])
+  // Cases linked to this offering (via junction)
+  const { data: junctionRows } = await supabase
+    .from('case_offerings')
+    .select(`cases ( ${CASE_COLUMNS} )`)
+    .eq('offering_id', id)
+
+  const linkedCases = (junctionRows ?? [])
+    .map((r) => (r.cases as unknown as Parameters<typeof mapCaseRow>[0] | null))
+    .filter((c): c is Parameters<typeof mapCaseRow>[0] => c != null)
+    .map(mapCaseRow)
+
+  // Unallocated cases in the same proposition (no entries in case_offerings at all)
+  const { data: allAllocated } = await supabase.from('case_offerings').select('case_id')
+  const allocatedIds = [...new Set(allAllocated?.map((r) => r.case_id) ?? [])]
+
+  let unallocatedQuery = supabase
+    .from('cases')
+    .select(CASE_COLUMNS)
+    .eq('proposition_id', data.proposition_id)
+  if (allocatedIds.length > 0) {
+    unallocatedQuery = unallocatedQuery.not('id', 'in', `(${allocatedIds.join(',')})`)
+  }
+  const { data: unallocatedData } = await unallocatedQuery
 
   return {
     id: data.id,
@@ -115,8 +129,8 @@ export async function fetchOfferingDetail(
     keyOutcomes: data.key_outcomes ?? null,
     practice: (data.practices as unknown as { name: string } | null)?.name ?? '',
     practiceOwner: (data.practices as unknown as { practice_owner: string } | null)?.practice_owner ?? '',
-    caseCount: (data.cases as { count: number }[])?.[0]?.count ?? 0,
-    cases: sortCasesByProofLevel((casesData ?? []).map(mapCaseRow)),
+    caseCount: linkedCases.length,
+    cases: sortCasesByProofLevel(linkedCases),
     propositionId: data.proposition_id,
     propositionName: (data.propositions as unknown as { name: string } | null)?.name ?? '',
     unallocatedCases: sortCasesByProofLevel((unallocatedData ?? []).map(mapCaseRow)),
